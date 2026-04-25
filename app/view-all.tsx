@@ -1,98 +1,79 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, useColorScheme, TouchableOpacity } from 'react-native';
+/**
+ * View All screen – used for category drilldown and "See all" from carousel
+ */
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
+
+import { DetailHeader } from '@/components/ui/PageHeader';
 import WallpaperGrid from '@/components/explore/WallpaperGrid';
-// UPDATED: Changed fetchTrending to fetchTopicAssets
-import { fetchTopicAssets, fetchWallpapers } from '@/services/api'; 
+import { fetchSearch, fetchCategory, fetchTrending } from '@/services/api';
+import { useTheme } from '@/constants/theme';
+import type { Wallpaper } from '@/services/api';
 
 export default function ViewAllScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
+  const t = useTheme();
+  const { query = '', title = 'Wallpapers', isCategory } = useLocalSearchParams<{
+    query: string;
+    title: string;
+    isCategory: string;
+  }>();
 
-  // Read params passed from Categories or Explore page
-  const query = typeof params.query === 'string' ? params.query : '';
-  const title = typeof params.title === 'string' ? params.title : 'Trending Wallpapers';
-
-  const [wallpapers, setWallpapers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [page, setPage]             = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-  
+
+  const isCat = isCategory === '1';
+
+  const load = useCallback(async (p: number, reset = false) => {
+    try {
+      let data: Wallpaper[];
+      if (!query)     data = await fetchTrending(p);
+      else if (isCat) data = await fetchCategory(query, p);
+      else             data = await fetchSearch(query, p);
+
+      setWallpapers(prev => (reset ? data : [...prev, ...data]));
+      setPage(p);
+    } finally {
+      reset ? setLoading(false) : setLoadingMore(false);
+    }
+  }, [query, isCat]);
+
   useEffect(() => {
-    const loadInitialData = async () => {
-      setLoading(true);
-      // UPDATED: Fetch based on whether a query was provided
-      const data = query 
-        ? await fetchWallpapers(query, 1) 
-        : await fetchTopicAssets('wallpapers', 1); 
-      
-      setWallpapers(data || []);
-      setLoading(false);
-    };
-    loadInitialData();
+    setLoading(true);
+    setPage(1);
+    load(1, true);
   }, [query]);
 
-  const loadMoreData = async () => {
-    if (loadingMore) return;
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading) return;
     setLoadingMore(true);
-    const nextPage = page + 1;
-    
-    try {
-      // UPDATED: Using fetchTopicAssets for the next page
-      const newWallpapers = query 
-        ? await fetchWallpapers(query, nextPage) 
-        : await fetchTopicAssets('wallpapers', nextPage);
-
-      if (newWallpapers && newWallpapers.length > 0) {
-        setWallpapers((prev) => [...prev, ...newWallpapers]);
-        setPage(nextPage);
-      }
-    } catch (error) {
-      console.error("Error loading more wallpapers", error);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+    await load(page + 1, false);
+  }, [loadingMore, loading, page, load]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
-      <View style={[styles.header, { borderBottomColor: isDark ? '#222' : '#f0f0f0' }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} hitSlop={10}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#111'} />
-        </TouchableOpacity>
-        
-        {/* Dynamic Title based on params */}
-        <Text style={[styles.headerTitle, { color: isDark ? '#fff' : '#111' }]} numberOfLines={1}>
-          {title}
-        </Text>
-        
-        <View style={{ width: 24 }} />
-      </View>
+    <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
+      <DetailHeader title={title} />
 
-      <View style={styles.content}>
-        {loading ? (
-          <ActivityIndicator size="large" color={isDark ? '#fff' : '#111'} style={{ marginTop: 50 }} />
-        ) : (
-          <WallpaperGrid 
-            wallpapers={wallpapers} 
-            header={null} 
-            onLoadMore={loadMoreData}
-            isLoadingMore={loadingMore}
-          />
-        )}
-      </View>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={t.accent} />
+        </View>
+      ) : (
+        <WallpaperGrid
+          wallpapers={wallpapers}
+          onLoadMore={loadMore}
+          isLoadingMore={loadingMore}
+          emptyMessage="No wallpapers found"
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
-  backButton: { padding: 4 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', flex: 1, textAlign: 'center' },
-  content: { flex: 1 }
+  root:   { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

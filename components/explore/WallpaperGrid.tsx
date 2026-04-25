@@ -1,70 +1,109 @@
-import { FavoritesContext } from '@/context/FavoritesContext';
+/**
+ * WallpaperGrid – masonry 2-column grid used everywhere.
+ */
+
+import React, { useContext } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
+import { Image } from 'expo-image';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
-import { BlurView } from 'expo-blur';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useContext } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FavoritesContext } from '@/context/FavoritesContext';
+import { useTheme, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '@/constants/theme';
+import type { Wallpaper } from '@/services/api';
 
-export default function WallpaperGrid({ wallpapers, header, onLoadMore, isLoadingMore }) {
+interface Props {
+  wallpapers: Wallpaper[];
+  header?: React.ReactNode;
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
+  emptyMessage?: string;
+}
+
+export default function WallpaperGrid({
+  wallpapers,
+  header,
+  onLoadMore,
+  isLoadingMore = false,
+  emptyMessage = 'No wallpapers found',
+}: Props) {
   const router = useRouter();
+  const t = useTheme();
   const { isFavorite, toggleFavorite, favorites } = useContext(FavoritesContext);
 
-  const renderItem = ({ item }) => {
-    const isFav = isFavorite(item.id);
-    const itemHeight = item.height ? Number(item.height) : 250;
+  const handlePress = (item: Wallpaper) => {
+    router.push({
+      pathname: '/wallpaper/[id]',
+      params: {
+        id: String(item.id),
+        url: item.url,
+        fullUrl: item.fullUrl || item.url,
+        title: item.title || 'Wallpaper',
+        author: item.author || 'Unknown',
+        height: String(item.height ?? 280),
+        resolution: item.resolution || '',
+        views: String(item.views ?? 0),
+        favoritesCount: String(item.favorites ?? 0),
+        colorsJson: JSON.stringify(item.colors ?? []),
+        fileSize: String(item.fileSize ?? 0),
+      },
+    });
+  };
 
-    const handlePress = () => {
-      router.push({
-        pathname: '/wallpaper/[id]',
-        params: {
-          id: String(item.id), 
-          url: item.url,
-          fullUrl: item.fullUrl || item.url, 
-          title: item.title || 'Untitled',
-          author: item.author || 'Unknown',
-          height: itemHeight
-        }
-      });
-    };
+  const renderItem = ({ item }: { item: Wallpaper }) => {
+    const isFav = isFavorite(item.id);
+    const cardHeight = Math.max(200, Math.min(item.height ?? 260, 360));
 
     return (
-      <TouchableOpacity 
-        style={[styles.cardContainer, { height: itemHeight }]}
-        activeOpacity={0.85}
-        onPress={handlePress}
+      <TouchableOpacity
+        style={[styles.card, { height: cardHeight, backgroundColor: t.card }]}
+        onPress={() => handlePress(item)}
+        activeOpacity={0.88}
       >
-        <Image 
-          source={{ uri: item.url }} 
-          style={styles.image} 
-          contentFit="cover" 
-          transition={300} 
+        <Image
+          source={{ uri: item.url }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={250}
+          recyclingKey={item.id}
         />
-        
-        {/* 1. Smooth Dark Fade: Ensures white text/icons are visible on light images */}
+
+        {/* Gradient fade for info legibility */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.6)']}
-          style={styles.gradientMask}
+          colors={['transparent', 'rgba(0,0,0,0.55)']}
+          style={styles.gradient}
           pointerEvents="none"
         />
-        
-        {/* 2. Glassmorphism Info Panel */}
-        <View style={styles.overlayWrapper}>
-          <BlurView 
-            intensity={Platform.OS === 'android' ? 60 : 40}
-            tint="dark" 
-            style={styles.glassPanel}
+
+        {/* Author + Fav pill */}
+        <View style={styles.infoWrapper}>
+          <BlurView
+            intensity={Platform.OS === 'android' ? 55 : 38}
+            tint="dark"
+            style={styles.infoPill}
           >
             <Text style={styles.authorText} numberOfLines={1}>
               {item.author || 'WallZone'}
             </Text>
-            <Pressable onPress={() => toggleFavorite(item)} style={styles.favButton} hitSlop={15}>
-              <Ionicons 
-                name={isFav ? "heart" : "heart-outline"} 
-                size={20} 
-                color={isFav ? "#ff4d6d" : "#ffffff"} 
+            <Pressable
+              onPress={() => toggleFavorite(item)}
+              hitSlop={14}
+              style={styles.favBtn}
+            >
+              <Ionicons
+                name={isFav ? 'heart' : 'heart-outline'}
+                size={18}
+                color={isFav ? '#FF3B5C' : '#fff'}
               />
             </Pressable>
           </BlurView>
@@ -73,100 +112,100 @@ export default function WallpaperGrid({ wallpapers, header, onLoadMore, isLoadin
     );
   };
 
-  return (
-    <View style={styles.container}>
-      <FlashList
-        data={wallpapers}
-        extraData={favorites} 
-        estimatedItemSize={250}
-        masonry 
-        numColumns={2} 
-        keyExtractor={(item, index) => `${item.id}-${index}`}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listPadding}
-        ListHeaderComponent={header} 
-        onEndReached={onLoadMore}
-        onEndReachedThreshold={0.5} 
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={styles.loader}>
-              <ActivityIndicator size="large" color="#888" />
-            </View>
-          ) : null
-        }
-      />
+  const ListEmpty = () => (
+    <View style={styles.empty}>
+      <Ionicons name="images-outline" size={48} color={t.textMuted} />
+      <Text style={[styles.emptyText, { color: t.textSub }]}>{emptyMessage}</Text>
     </View>
+  );
+
+  const Footer = () =>
+    isLoadingMore ? (
+      <View style={styles.footer}>
+        <ActivityIndicator size="small" color={t.textSub} />
+      </View>
+    ) : null;
+
+  return (
+    <FlashList
+      data={wallpapers}
+      extraData={favorites}
+      estimatedItemSize={260}
+      numColumns={2}
+      // @ts-ignore – FlashList supports masonry via this prop
+      masonry
+      renderItem={renderItem}
+      keyExtractor={(item, index) => `${item.id}-${index}`}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: SPACING.sm, paddingBottom: 130 }}
+      ListHeaderComponent={header ?? undefined}
+      ListEmptyComponent={wallpapers.length === 0 && !isLoadingMore ? <ListEmpty /> : null}
+      ListFooterComponent={<Footer />}
+      onEndReached={onLoadMore}
+      onEndReachedThreshold={0.4}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    width: '100%' 
-  },
-  listPadding: { 
-    paddingHorizontal: 6, // 6px padding on edges + 6px margin on cards = 12px outer spacing
-    paddingBottom: 140 
-  },
-  
-  /* Modern Masonry Card */
-  cardContainer: { 
-    marginHorizontal: 6, // 12px gap between columns
-    marginBottom: 12,    // 12px gap between rows
-    borderRadius: 22, 
-    overflow: 'hidden', 
-    backgroundColor: '#1E1E1E',
-    // Subtle shadow for depth
+  card: {
+    marginHorizontal: SPACING.xs + 2,
+    marginBottom: SPACING.sm + 4,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 6,
   },
-  image: { 
-    width: '100%', 
-    height: '100%' 
-  },
-
-  /* Overlays */
-  gradientMask: {
+  gradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '50%', // Fades up the bottom half
+    height: '55%',
   },
-  overlayWrapper: {
+  infoWrapper: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    right: 8,
-    borderRadius: 16,
-    overflow: 'hidden', // Required to clip the blur view into a pill shape
+    bottom: SPACING.sm,
+    left: SPACING.sm,
+    right: SPACING.sm,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
   },
-  glassPanel: {
+  infoPill: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(0,0,0,0.1)', // Very subtle tint behind the blur
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.sm + 4,
+    paddingVertical: SPACING.sm + 2,
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
-  authorText: { 
-    color: '#ffffff', 
-    fontSize: 11,
-    fontWeight: '700', 
-    flex: 1, 
-    marginRight: 8,
-    letterSpacing: 0.3,
+  authorText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: FONT_SIZE.caption,
+    fontWeight: FONT_WEIGHT.bold,
+    marginRight: SPACING.xs,
+    letterSpacing: 0.2,
   },
-  favButton: { 
+  favBtn: {
     padding: 2,
   },
-  
-  loader: { 
-    paddingVertical: 20, 
-    alignItems: 'center' 
-  }
+  empty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 80,
+    gap: SPACING.md,
+  },
+  emptyText: {
+    fontSize: FONT_SIZE.body,
+    fontWeight: FONT_WEIGHT.medium,
+    textAlign: 'center',
+  },
+  footer: {
+    paddingVertical: SPACING.xl,
+    alignItems: 'center',
+  },
 });

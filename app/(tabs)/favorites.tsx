@@ -1,132 +1,123 @@
+/**
+ * Favorites / Collection screen
+ */
 import React, { useContext } from 'react';
-import { View, Text, StyleSheet, useColorScheme, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { FavoritesContext } from '@/context/FavoritesContext';
+
 import WallpaperGrid from '@/components/explore/WallpaperGrid';
+import { FavoritesContext } from '@/context/FavoritesContext';
+import { useTheme, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '@/constants/theme';
 
 export default function FavoritesScreen() {
-  const { favorites } = useContext(FavoritesContext);
+  const t = useTheme();
   const router = useRouter();
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
+  const { favorites } = useContext(FavoritesContext);
 
-  const bgColor = isDark ? '#000000' : '#FFFFFF';
-  const textColor = isDark ? '#FFFFFF' : '#111111';
-  const subTextColor = isDark ? '#888888' : '#666666';
+  const count = favorites?.length ?? 0;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
-      {/* 1. Header Section - Modern Large Title */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: textColor }]}>Collection</Text>
-        <Text style={[styles.subtitle, { color: subTextColor }]}>
-          {favorites?.length || 0} wallpapers saved
-        </Text>
+    <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: t.bg }]}>
+        <View>
+          <Text style={[styles.title, { color: t.text }]}>Collection</Text>
+          <Text style={[styles.subtitle, { color: t.textSub }]}>
+            {count > 0 ? `${count} wallpaper${count !== 1 ? 's' : ''} saved` : 'Your saved wallpapers'}
+          </Text>
+        </View>
       </View>
 
-      {/* 2. Main Content Logic */}
-      {!favorites || favorites.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <View style={[styles.iconCircle, { backgroundColor: isDark ? '#111' : '#F5F5F5' }]}>
-            <Ionicons name="heart-outline" size={40} color={isDark ? '#444' : '#CCC'} />
-          </View>
-          
-          <Text style={[styles.emptyTitle, { color: textColor }]}>Nothing here yet</Text>
-          <Text style={[styles.emptySubtitle, { color: subTextColor }]}>
-            Tap the heart icon on any wallpaper to save it to your personal collection.
-          </Text>
-          
-          {/* Back to Explore Button */}
-          <TouchableOpacity 
-            style={[styles.exploreButton, { backgroundColor: isDark ? '#FFF' : '#111' }]}
-            onPress={() => router.push('/')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.exploreButtonText, { color: isDark ? '#000' : '#FFF' }]}>
-              Find Wallpapers
-            </Text>
-          </TouchableOpacity>
-        </View>
+      {/* Content */}
+      {count === 0 ? (
+        <EmptyState onExplore={() => router.push('/')} t={t} />
       ) : (
-        <View style={styles.content}>
-          <WallpaperGrid 
-            wallpapers={favorites} 
-            header={null}
-            // Adding bottom padding for our custom pill tab bar
-            contentContainerStyle={styles.gridPadding} 
-          />
-        </View>
+        <WallpaperGrid
+          wallpapers={favorites}
+          header={null}
+          emptyMessage="Nothing saved yet"
+        />
       )}
     </SafeAreaView>
   );
 }
 
+function EmptyState({ onExplore, t }: { onExplore: () => void; t: any }) {
+  return (
+    <View style={styles.empty}>
+      <View style={[styles.iconCircle, { backgroundColor: t.surface }]}>
+        <Ionicons name="heart-outline" size={38} color={t.textMuted} />
+      </View>
+      <Text style={[styles.emptyTitle, { color: t.text }]}>Nothing saved yet</Text>
+      <Text style={[styles.emptyBody, { color: t.textSub }]}>
+        Tap the heart on any wallpaper to add it to your collection.
+      </Text>
+      <TouchableOpacity
+        style={[styles.exploreBtn, { backgroundColor: t.text }]}
+        onPress={onExplore}
+        activeOpacity={0.82}
+      >
+        <Text style={[styles.exploreBtnText, { color: t.bg }]}>Browse Wallpapers</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1 
+  root: { flex: 1 },
+
+  header: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
   },
-  header: { 
-    paddingHorizontal: 24, 
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  title: { 
-    fontSize: 34, 
-    fontWeight: '800',
-    letterSpacing: -0.5,
+  title: {
+    fontSize: FONT_SIZE.title,
+    fontWeight: FONT_WEIGHT.extrabold,
+    letterSpacing: -0.8,
   },
   subtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 4,
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.medium,
+    marginTop: 3,
   },
-  content: { 
-    flex: 1 
-  },
-  gridPadding: {
-    paddingHorizontal: 12,
-    paddingBottom: 120, // Space for the pill tab bar + some breathing room
-  },
-  emptyContainer: { 
-    flex: 1, 
-    justifyContent: 'center', 
+
+  empty: {
+    flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 40,
-    marginBottom: 60,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xxl,
+    paddingBottom: 60,
+    gap: SPACING.md,
   },
   iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
+    width: 88,
+    height: 88,
+    borderRadius: RADIUS.pill,
     alignItems: 'center',
-    marginBottom: 24,
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
   },
-  emptyTitle: { 
-    fontSize: 20, 
-    fontWeight: '700',
-    marginBottom: 8,
+  emptyTitle: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.bold,
+    textAlign: 'center',
   },
-  emptySubtitle: { 
-    fontSize: 15, 
+  emptyBody: {
+    fontSize: FONT_SIZE.body,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
   },
-  exploreButton: {
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+  exploreBtn: {
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md - 2,
+    borderRadius: RADIUS.pill,
   },
-  exploreButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-  }
+  exploreBtnText: {
+    fontSize: FONT_SIZE.body,
+    fontWeight: FONT_WEIGHT.bold,
+  },
 });

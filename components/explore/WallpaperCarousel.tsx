@@ -1,134 +1,123 @@
-import { FavoritesContext } from '@/context/FavoritesContext';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+/**
+ * WallpaperCarousel – horizontal hero carousel used on the home screen.
+ */
+
 import React, { useContext, useMemo, useRef } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useColorScheme,
-    View
+  View,
+  Text,
+  TouchableOpacity,
+  Pressable,
+  StyleSheet,
+  Dimensions,
+  Platform,
+  Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { FavoritesContext } from '@/context/FavoritesContext';
+import { useTheme, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '@/constants/theme';
+import type { Wallpaper } from '@/services/api';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.72; 
-const CARD_HEIGHT = CARD_WIDTH * 1.25; 
-const GAP = 16;
-const ITEM_SIZE = CARD_WIDTH + GAP; 
+const { width: W } = Dimensions.get('window');
+const CARD_W    = W * 0.70;
+const CARD_H    = CARD_W * 1.28;
+const ITEM_GAP  = 14;
+const ITEM_SIZE = CARD_W + ITEM_GAP;
+const LOOP      = 8; // loop multiplier – low enough to not waste memory
 
-// Reduced from 50 to 8 to completely eliminate lag while keeping the infinite feel
-const LOOP_MULTIPLIER = 8;
+interface Props {
+  title?: string;
+  data: Wallpaper[];
+  onSeeAll?: () => void;
+}
 
-export default function WallpaperCarousel({ title, data }) {
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const { isFavorite, toggleFavorite, favorites } = useContext(FavoritesContext);
+export default function WallpaperCarousel({ title = 'Trending', data, onSeeAll }: Props) {
   const router = useRouter();
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
+  const t = useTheme();
+  const { isFavorite, toggleFavorite, favorites } = useContext(FavoritesContext);
+  const scrollX = useRef(new Animated.Value(0)).current;
 
-  const infiniteData = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    return Array(LOOP_MULTIPLIER).fill(data).flat();
+  const loopedData = useMemo(() => {
+    if (!data?.length) return [];
+    return Array(LOOP).fill(data).flat() as Wallpaper[];
   }, [data]);
 
-  // Calculate the absolute pixel offset for the middle index
-  const middleIndex = data ? Math.floor(LOOP_MULTIPLIER / 2) * data.length : 0;
-  const initialOffset = middleIndex * ITEM_SIZE;
+  const middleOffset = data?.length
+    ? Math.floor(LOOP / 2) * data.length * ITEM_SIZE
+    : 0;
 
-  // Pre-calculate dot interpolation ranges so the JS thread doesn't lag on scroll
-  const { dotInputRange, widthOutputRanges, opacityOutputRanges } = useMemo(() => {
-    const ranges = { dotInputRange: [], widthOutputRanges: [], opacityOutputRanges: [] };
-    if (!data) return ranges;
+  // Pre-calculate dot animation ranges
+  const dotRanges = useMemo(() => {
+    if (!data?.length) return { input: [], widths: [], opacities: [] };
+    const input = loopedData.map((_, i) => i * ITEM_SIZE);
+    const widths = data.map((_, orig) =>
+      loopedData.map((_, i) => (i % data.length === orig ? 22 : 7))
+    );
+    const opacities = data.map((_, orig) =>
+      loopedData.map((_, i) => (i % data.length === orig ? 1 : 0.22))
+    );
+    return { input, widths, opacities };
+  }, [data, loopedData]);
 
-    infiniteData.forEach((_, index) => {
-      ranges.dotInputRange.push(index * ITEM_SIZE);
-    });
+  if (!data?.length) return null;
 
-    data.forEach((_, originalIndex) => {
-      const widthRange = [];
-      const opacityRange = [];
-      infiniteData.forEach((_, index) => {
-        const isActive = index % data.length === originalIndex;
-        widthRange.push(isActive ? 24 : 8);
-        opacityRange.push(isActive ? 1 : 0.2);
-      });
-      ranges.widthOutputRanges.push(widthRange);
-      ranges.opacityOutputRanges.push(opacityRange);
-    });
-
-    return ranges;
-  }, [data, infiniteData]);
-
-  if (!data || data.length === 0) return null;
-
-  const renderItem = ({ item, index }) => {
+  const renderItem = ({ item, index }: { item: Wallpaper; index: number }) => {
     const isFav = isFavorite(item.id);
+    const range = [(index - 1) * ITEM_SIZE, index * ITEM_SIZE, (index + 1) * ITEM_SIZE];
 
-    const inputRange = [
-      (index - 1) * ITEM_SIZE, 
-      index * ITEM_SIZE, 
-      (index + 1) * ITEM_SIZE
-    ];
-
-    const scale = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.88, 1, 0.88], 
-      extrapolate: 'clamp',
-    });
-
-    const opacity = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.6, 1, 0.6],
-      extrapolate: 'clamp',
-    });
+    const scale = scrollX.interpolate({ inputRange: range, outputRange: [0.90, 1, 0.90], extrapolate: 'clamp' });
+    const opacity = scrollX.interpolate({ inputRange: range, outputRange: [0.55, 1, 0.55], extrapolate: 'clamp' });
 
     return (
       <Animated.View style={[styles.cardWrapper, { transform: [{ scale }], opacity }]}>
-        <TouchableOpacity 
-          style={[styles.card, { backgroundColor: isDark ? '#1E1E1E' : '#f5f5f5' }]} 
-          activeOpacity={0.85}
-          onPress={() => router.push({ pathname: '/wallpaper/[id]', params: { id: item.id, ...item } })}
+        <TouchableOpacity
+          style={[styles.card, { backgroundColor: t.card }]}
+          activeOpacity={0.88}
+          onPress={() =>
+            router.push({ pathname: '/wallpaper/[id]', params: { id: item.id, ...item } })
+          }
         >
-          <Image 
-            source={{ uri: item.url }} 
-            style={styles.image} 
-            contentFit="cover" 
-            transition={200} 
+          <Image
+            source={{ uri: item.url }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={200}
+            recyclingKey={item.id}
           />
-          
+
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.gradientMask}
+            colors={['transparent', 'rgba(0,0,0,0.75)']}
+            style={styles.gradient}
             pointerEvents="none"
           />
 
           <View style={styles.glassWrapper}>
-            <BlurView 
-              intensity={Platform.OS === 'android' ? 65 : 45} 
-              tint="dark" 
-              style={styles.glassPanel}
+            <BlurView
+              intensity={Platform.OS === 'android' ? 60 : 42}
+              tint="dark"
+              style={styles.glass}
             >
-              <View style={styles.textContainer}>
-                <Text style={styles.fileName} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.subText}>{item.author || 'Wallzone'}</Text>
+              <View style={styles.glassText}>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                  {item.title || 'Wallpaper'}
+                </Text>
+                <Text style={styles.cardSub} numberOfLines={1}>
+                  by {item.author || 'WallZone'}
+                </Text>
               </View>
-
-              <Pressable 
-                style={styles.favButton} 
+              <Pressable
                 onPress={() => toggleFavorite(item)}
-                hitSlop={15}
+                hitSlop={14}
+                style={styles.favBtn}
               >
-                <Ionicons 
-                  name={isFav ? "heart" : "heart-outline"} 
-                  size={24} 
-                  color={isFav ? "#ff4d6d" : "#ffffff"} 
+                <Ionicons
+                  name={isFav ? 'heart' : 'heart-outline'}
+                  size={22}
+                  color={isFav ? '#FF3B5C' : '#fff'}
                 />
               </Pressable>
             </BlurView>
@@ -139,69 +128,59 @@ export default function WallpaperCarousel({ title, data }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
-      <View style={styles.headerRow}>
-        <Text style={[styles.headerTitle, { color: isDark ? '#fff' : '#1f1f1f' }]}>
-          {title || "Trending"}
-        </Text>
-        <TouchableOpacity onPress={() => router.push('/view-all')} activeOpacity={0.6}>
-          <Text style={[styles.seeAll,{ color: isDark ? '#fff' : '#1f1f1f' }]}>See all</Text>
-        </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: t.bg }]}>
+      {/* Header row */}
+      <View style={styles.header}>
+        <Text style={[styles.sectionTitle, { color: t.text }]}>{title}</Text>
+        {onSeeAll && (
+          <TouchableOpacity onPress={onSeeAll} activeOpacity={0.6} hitSlop={10}>
+            <Text style={[styles.seeAll, { color: t.accent }]}>See all</Text>
+          </TouchableOpacity>
+        )}
       </View>
-      
+
+      {/* Carousel */}
       <Animated.FlatList
-        data={infiniteData}
-        extraData={favorites} 
+        data={loopedData}
+        extraData={favorites}
         renderItem={renderItem}
-        keyExtractor={(item, index) => `${item.id}-loop-${index}`}
+        keyExtractor={(item, i) => `${item.id}-${i}`}
         horizontal
         showsHorizontalScrollIndicator={false}
-        
-        // Exact pixel calculation to force centering
-        contentContainerStyle={{ paddingHorizontal: (width - ITEM_SIZE) / 2 }}
-        
-        // FIX: Using contentOffset directly bypasses the initialScrollIndex math bug
-        contentOffset={{ x: initialOffset, y: 0 }}
-
-        snapToInterval={ITEM_SIZE} 
-        snapToAlignment="start" 
+        contentContainerStyle={{ paddingHorizontal: (W - ITEM_SIZE) / 2 }}
+        contentOffset={{ x: middleOffset, y: 0 }}
+        snapToInterval={ITEM_SIZE}
+        snapToAlignment="start"
         decelerationRate="fast"
-        bounces={false} 
-        
-        // PERFORMANCE BOOSTERS: Kills the lag completely by dropping off-screen blurs
+        bounces={false}
         initialNumToRender={3}
         windowSize={3}
         maxToRenderPerBatch={3}
-        removeClippedSubviews={true}
-        
+        removeClippedSubviews
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false } 
+          { useNativeDriver: false }
         )}
         scrollEventThrottle={16}
       />
 
-      <View style={styles.paginationContainer}>
+      {/* Dot indicators */}
+      <View style={styles.dots}>
         {data.map((_, i) => {
-          const dotWidth = scrollX.interpolate({ 
-            inputRange: dotInputRange, 
-            outputRange: widthOutputRanges[i], 
-            extrapolate: 'clamp' 
+          const width = scrollX.interpolate({
+            inputRange: dotRanges.input,
+            outputRange: dotRanges.widths[i],
+            extrapolate: 'clamp',
           });
-          
-          const opacity = scrollX.interpolate({ 
-            inputRange: dotInputRange, 
-            outputRange: opacityOutputRanges[i], 
-            extrapolate: 'clamp' 
+          const opacity = scrollX.interpolate({
+            inputRange: dotRanges.input,
+            outputRange: dotRanges.opacities[i],
+            extrapolate: 'clamp',
           });
-
           return (
-            <Animated.View 
-              key={i.toString()} 
-              style={[
-                styles.dot, 
-                { width: dotWidth, opacity, backgroundColor: isDark ? '#ffffff' : '#111111' }
-              ]} 
+            <Animated.View
+              key={i}
+              style={[styles.dot, { width, opacity, backgroundColor: t.text }]}
             />
           );
         })}
@@ -210,103 +189,88 @@ export default function WallpaperCarousel({ title, data }) {
   );
 }
 
-/* ─────────────────── Styles ─────────────────── */
 const styles = StyleSheet.create({
-  container: { 
-    paddingVertical: 16 
+  container: { paddingVertical: SPACING.md },
+
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
   },
-  headerRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    paddingHorizontal: 24, 
-    marginBottom: 16 
+  sectionTitle: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: FONT_WEIGHT.extrabold,
+    letterSpacing: -0.4,
   },
-  headerTitle: { 
-    fontSize: 22, 
-    fontWeight: '800',
-    letterSpacing: -0.5,
+  seeAll: {
+    fontSize: FONT_SIZE.body,
+    fontWeight: FONT_WEIGHT.bold,
   },
-  seeAll: { 
-    fontSize: 15, 
-    color: '#0a7ea4', 
-    fontWeight: '700' 
-  },
-  
+
   cardWrapper: {
     width: ITEM_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  card: { 
-    width: CARD_WIDTH, 
-    height: CARD_HEIGHT, 
-    borderRadius: 32, 
+  card: {
+    width: CARD_W,
+    height: CARD_H,
+    borderRadius: RADIUS.xl,
     overflow: 'hidden',
-    // elevation: 8,
-    // shadowColor: '#000',
-    // shadowOffset: { width: 0, height: 6 },
-    // shadowOpacity: 0.2,
-    // shadowRadius: 10,
   },
-  image: { 
-    width: '100%', 
-    height: '100%' 
-  },
-
-  gradientMask: {
+  gradient: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    height: '50%',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
   },
   glassWrapper: {
     position: 'absolute',
-    bottom: 12,
-    left: 12,
-    right: 12,
-    borderRadius: 20,
+    bottom: SPACING.md,
+    left: SPACING.md,
+    right: SPACING.md,
+    borderRadius: RADIUS.lg,
     overflow: 'hidden',
   },
-  glassPanel: {
+  glass: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: 'rgba(0,0,0,0.15)', 
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md - 2,
+    backgroundColor: 'rgba(0,0,0,0.12)',
   },
-  textContainer: { 
-    flex: 1, 
-    marginRight: 12 
+  glassText: { flex: 1, marginRight: SPACING.sm },
+  cardTitle: {
+    color: '#fff',
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.extrabold,
+    letterSpacing: 0.1,
   },
-  fileName: { 
-    color: '#ffffff', 
-    fontSize: 16, 
-    fontWeight: '800',
-    letterSpacing: 0.2, 
+  cardSub: {
+    color: 'rgba(255,255,255,0.68)',
+    fontSize: FONT_SIZE.caption,
+    fontWeight: FONT_WEIGHT.semibold,
+    marginTop: 2,
   },
-  subText: { 
-    color: 'rgba(255,255,255,0.7)', 
-    fontSize: 13, 
-    fontWeight: '600',
-    marginTop: 2 
-  },
-  favButton: { 
+  favBtn: {
     padding: 4,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
+    borderRadius: RADIUS.pill,
   },
-  
-  paginationContainer: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginTop: 20, 
-    height: 10 
+
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: SPACING.md + 4,
+    height: 10,
   },
-  dot: { 
-    height: 8, 
-    borderRadius: 4, 
-    marginHorizontal: 4 
+  dot: {
+    height: 7,
+    borderRadius: RADIUS.pill,
+    marginHorizontal: 3,
   },
 });
