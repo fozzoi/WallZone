@@ -1,89 +1,105 @@
 /**
- * Wallpaper Detail screen – [id].tsx
+ * Wallpaper Detail — [id].tsx
  */
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, Pressable,
   StyleSheet, StatusBar, ActivityIndicator,
-  Animated, Easing, Dimensions, LayoutAnimation,
-  Platform,
+  Animated, Easing, Dimensions, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
-import ImageColors from 'react-native-image-colors';
 import ManageWallpaper, { TYPE } from 'react-native-manage-wallpaper';
 
 import { FavoritesContext } from '@/context/FavoritesContext';
-import { useTheme, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT, SHADOW } from '@/constants/theme';
+import { useTheme } from '@/constants/theme';
 
-const { width: W, height: H } = Dimensions.get('window');
-
-const PANEL_H   = 230;
-const SLIDE_VAL = -(PANEL_H + 20);
-
+const { height: H } = Dimensions.get('window');
 type Target = 'home' | 'lock' | 'both';
+
+const SHEET_OPEN   = 0;
+const SHEET_HIDDEN = 206;
 
 export default function WallpaperDetail() {
   const params = useLocalSearchParams<any>();
   const router = useRouter();
-  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const t      = useTheme();
   const { isFavorite, toggleFavorite } = useContext(FavoritesContext);
 
-  const imageUrl   = params.fullUrl || params.url || '';
-  const isFav      = isFavorite(params.id);
-  const [accent, setAccent]         = useState(t.accent);
+  const imageUrl = params.fullUrl || params.url || '';
+  const isFav    = isFavorite(params.id);
+
   const [downloading, setDownloading] = useState(false);
   const [settingWall, setSettingWall] = useState(false);
-  const [selecting, setSelecting]   = useState(false);
+  const [targetOpen,  setTargetOpen]  = useState(false);
+  const [collapsed,   setCollapsed]   = useState(false);
 
-  const slide = useRef(new Animated.Value(0)).current;
+  const sheetY     = useRef(new Animated.Value(SHEET_OPEN)).current;
+  const pickerH    = useRef(new Animated.Value(0)).current;
+  const pickerOpac = useRef(new Animated.Value(0)).current;
 
-  // ── Extract dominant color from image ──────────────────────────────────────
-  useEffect(() => {
-    if (!imageUrl) return;
-    ImageColors.getColors(imageUrl, { fallback: t.accent, cache: true })
-      .then(colors => {
-        let c = t.accent;
-        if (colors.platform === 'android') c = colors.dominant || colors.vibrant || c;
-        if (colors.platform === 'ios')     c = colors.primary  || colors.detail  || c;
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setAccent(c);
-      })
-      .catch(() => {});
-  }, [imageUrl]);
-
-  // ── Toggle wallpaper-target panel ─────────────────────────────────────────
-  const togglePanel = (show: boolean) => {
-    setSelecting(show);
-    if (show) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Animated.timing(slide, {
-      toValue: show ? SLIDE_VAL : 0,
-      duration: 440,
-      easing: Easing.out(Easing.back(1.08)),
+  // ── Sheet ──────────────────────────────────────────────────────────────────
+  const snapSheet = (hide: boolean) => {
+    setCollapsed(hide);
+    if (hide && targetOpen) closePicker();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.spring(sheetY, {
+      toValue: hide ? SHEET_HIDDEN : SHEET_OPEN,
+      damping: 24, stiffness: 210, mass: 0.75,
       useNativeDriver: true,
     }).start();
+  };
+
+  // ── Picker ─────────────────────────────────────────────────────────────────
+  const openPicker = () => {
+    setTargetOpen(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Animated.parallel([
+      Animated.timing(pickerH, {
+        toValue: 1, duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(pickerOpac, {
+        toValue: 1, duration: 200,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: false,
+      }),
+    ]).start();
+  };
+
+  const closePicker = () => {
+    Animated.parallel([
+      Animated.timing(pickerH, {
+        toValue: 0, duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(pickerOpac, {
+        toValue: 0, duration: 150,
+        useNativeDriver: false,
+      }),
+    ]).start(() => setTargetOpen(false));
   };
 
   // ── Set wallpaper ──────────────────────────────────────────────────────────
   const handleSetWallpaper = (target: Target) => {
     const map = { home: TYPE.HOME, lock: TYPE.LOCK, both: TYPE.BOTH };
-    togglePanel(false);
+    closePicker();
     setTimeout(() => {
       setSettingWall(true);
-      ManageWallpaper.setWallpaper(
-        { uri: imageUrl },
-        () => {
-          setSettingWall(false);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        },
-        map[target]
-      );
-    }, 500);
+      ManageWallpaper.setWallpaper({ uri: imageUrl }, () => {
+        setSettingWall(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }, map[target]);
+    }, 280);
   };
 
   // ── Download ───────────────────────────────────────────────────────────────
@@ -91,12 +107,11 @@ export default function WallpaperDetail() {
     if (downloading) return;
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== 'granted') return;
-
     setDownloading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       const ext  = imageUrl.endsWith('.png') ? 'png' : 'jpg';
-      const path = `${FileSystem.cacheDirectory}wallzone_${params.id}.${ext}`;
+      const path = `${FileSystem.cacheDirectory}wz_${params.id}.${ext}`;
       const { uri } = await FileSystem.downloadAsync(imageUrl, path);
       await MediaLibrary.saveToLibraryAsync(uri);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -107,133 +122,210 @@ export default function WallpaperDetail() {
     }
   };
 
-  // ── Format title ──────────────────────────────────────────────────────────
   const formatTitle = (raw: any) => {
     if (!raw || typeof raw !== 'string') return 'Wallpaper';
     return raw.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
   };
 
-  const colors: string[] = (() => {
-    try { return JSON.parse(params.colorsJson || '[]'); } catch { return []; }
-  })();
+  const isDark   = t.isDark;
+  const sheetBg  = isDark ? '#1C1C1E' : '#FFFFFF';
+  const subBg    = isDark ? '#2C2C2E' : '#F2F2F7';
+  const sub2Bg   = isDark ? '#3A3A3C' : '#E5E5EA';
+  const textPri  = isDark ? '#FFFFFF' : '#000000';
+  const textSec  = isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.36)';
+  const divider  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+
+  // Picker height interpolation — 3 rows × 54px + 12px padding
+  const pickerMaxH = 3 * 54 + 12;
+  const pickerHeightInterp = pickerH.interpolate({
+    inputRange:  [0, 1],
+    outputRange: [0, pickerMaxH],
+  });
 
   return (
     <View style={styles.root}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      {/* Full-bleed background image */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={() => selecting && togglePanel(false)}>
-        <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      {/* Wallpaper */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => snapSheet(!collapsed)}>
+        <Image
+          source={{ uri: imageUrl }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={350}
+        />
       </Pressable>
 
-      {/* Back button */}
-      <SafeAreaView style={styles.headerSafe} edges={['top']}>
+      {/* Vignette */}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.52)']}
+        style={styles.vignette}
+        pointerEvents="none"
+      />
+
+      {/* ── Top bar ── */}
+      <SafeAreaView style={styles.topBar} edges={['top']}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={[styles.backBtn, { backgroundColor: 'rgba(0,0,0,0.42)' }]}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={14}
+          style={styles.topBtn}
+          activeOpacity={0.75}
         >
-          <Ionicons name="arrow-back" size={20} color="#fff" />
+          <Ionicons name="chevron-back" size={20} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => { toggleFavorite({ ...params }); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          hitSlop={14}
+          style={styles.topBtn}
+          activeOpacity={0.75}
+        >
+          <Ionicons
+            name={isFav ? 'heart' : 'heart-outline'}
+            size={19}
+            color={isFav ? '#FF375F' : '#fff'}
+          />
         </TouchableOpacity>
       </SafeAreaView>
 
-      {/* ── Info card + selection panel (slide together) ── */}
-      <Animated.View style={[styles.cardStack, { transform: [{ translateY: slide }] }]}>
+      {/* ── Sheet ── */}
+      <Animated.View
+        style={[
+          styles.sheetWrap,
+          { bottom: insets.bottom + 16, transform: [{ translateY: sheetY }] },
+        ]}
+      >
+        {/* Handle */}
+        <TouchableOpacity
+          style={styles.handleWrap}
+          onPress={() => snapSheet(!collapsed)}
+          hitSlop={{ top: 12, bottom: 12, left: 80, right: 80 }}
+          activeOpacity={1}
+        >
+          <View style={styles.handle} />
+        </TouchableOpacity>
 
-        {/* Selection panel (sits below the card, slides up with it) */}
-        <View style={[styles.panel, { backgroundColor: t.card }]}>
-          <Text style={[styles.panelTitle, { color: t.text }]}>Apply to Screen</Text>
-          <View style={styles.optionRow}>
-            {([
-              { id: 'home', icon: 'home-outline',         label: 'Home' },
-              { id: 'lock', icon: 'lock-closed-outline',  label: 'Lock' },
-              { id: 'both', icon: 'layers-outline',       label: 'Both' },
-            ] as const).map(opt => (
-              <TouchableOpacity
-                key={opt.id}
-                style={[styles.option, { backgroundColor: t.isDark ? 'rgba(255,255,255,0.07)' : '#F2F2F7' }]}
-                onPress={() => handleSetWallpaper(opt.id)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name={opt.icon} size={22} color={accent} />
-                <Text style={[styles.optionLabel, { color: t.text }]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        {/* Card */}
+        <View style={[styles.card, { backgroundColor: sheetBg }]}>
 
-        {/* Main info card */}
-        <View style={[styles.card, { backgroundColor: t.card }]}>
-          <View style={styles.cardInner}>
-            {/* Title + fav */}
-            <View style={styles.titleRow}>
-              <View style={styles.titleBlock}>
-                <Text style={[styles.title, { color: t.text }]} numberOfLines={2}>
-                  {formatTitle(params.title)}
-                </Text>
-                <Text style={[styles.author, { color: t.textSub }]}>by {params.author || 'WallZone'}</Text>
-              </View>
-              <TouchableOpacity onPress={() => toggleFavorite({ ...params })} style={styles.favBtn} hitSlop={10}>
-                <Ionicons
-                  name={isFav ? 'heart' : 'heart-outline'}
-                  size={26}
-                  color={isFav ? '#FF3B5C' : t.text}
-                />
-              </TouchableOpacity>
+          {/* ── Header ── */}
+          <View style={styles.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.title, { color: textPri }]} numberOfLines={1}>
+                {formatTitle(params.title)}
+              </Text>
+              <Text style={[styles.author, { color: textSec }]}>
+                by {params.author || 'Wallheven'}
+              </Text>
             </View>
 
-            {/* Meta grid */}
-            <View style={styles.metaGrid}>
-              {[
-                { icon: 'expand-outline',        label: 'Resolution', value: params.resolution || 'HD'       },
-                { icon: 'eye-outline',            label: 'Views',      value: Number(params.views || 0).toLocaleString() },
-                { icon: 'heart-outline',          label: 'Favorites',  value: Number(params.favoritesCount || 0).toLocaleString() },
-                { icon: 'color-palette-outline',  label: 'Dominant',   value: accent.toUpperCase()            },
-              ].map(m => (
-                <View key={m.label} style={[styles.metaBox, { backgroundColor: t.isDark ? 'rgba(255,255,255,0.05)' : '#F8F8F8' }]}>
-                  <Ionicons name={m.icon as any} size={15} color={accent} style={styles.metaIcon} />
-                  <View>
-                    <Text style={[styles.metaLabel, { color: t.textSub }]}>{m.label}</Text>
-                    <Text style={[styles.metaValue, { color: t.text }]} numberOfLines={1}>{m.value}</Text>
+            {/* Stat chips */}
+            <View style={styles.chips}>
+              <View style={[styles.chip, { backgroundColor: subBg }]}>
+                <Ionicons name="eye-outline" size={12} color={textSec} />
+                <Text style={[styles.chipText, { color: textPri }]}>
+                  {Number(params.views || 0).toLocaleString()}
+                </Text>
+              </View>
+              <View style={[styles.chip, { backgroundColor: subBg }]}>
+                <Ionicons name="scan-outline" size={12} color={textSec} />
+                <Text style={[styles.chipText, { color: textPri }]}>
+                  {params.resolution || 'HD'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: divider }]} />
+
+          {/* ── Picker (animated height) ── */}
+          <Animated.View
+            style={{
+              height: pickerHeightInterp,
+              opacity: pickerOpac,
+              overflow: 'hidden',
+            }}
+          >
+            <View style={styles.picker}>
+              {([
+                { id: 'home' as Target, icon: 'phone-portrait-outline', label: 'Home Screen' },
+                { id: 'lock' as Target, icon: 'lock-closed-outline',    label: 'Lock Screen' },
+                { id: 'both' as Target, icon: 'layers-outline',         label: 'Both Screens' },
+              ]).map((opt, i, arr) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[
+                    styles.pickerRow,
+                    i < arr.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: divider },
+                  ]}
+                  onPress={() => handleSetWallpaper(opt.id)}
+                  activeOpacity={0.55}
+                >
+                  <View style={[styles.pickerIcon, { backgroundColor: subBg }]}>
+                    <Ionicons name={opt.icon as any} size={16} color={textPri} />
                   </View>
-                </View>
+                  <Text style={[styles.pickerLabel, { color: textPri }]}>{opt.label}</Text>
+                  <Ionicons name="chevron-forward" size={14} color={textSec} />
+                </TouchableOpacity>
               ))}
             </View>
 
-            {/* Color swatches */}
-            {colors.length > 0 && (
-              <View style={styles.swatches}>
-                {colors.slice(0, 6).map((c, i) => (
-                  <View key={i} style={[styles.swatch, { backgroundColor: c }]} />
-                ))}
-              </View>
-            )}
+            {/* Picker bottom divider */}
+            <View style={[styles.divider, { backgroundColor: divider, marginTop: 0 }]} />
+          </Animated.View>
 
-            {/* Action buttons */}
-            <View style={styles.btnRow}>
-              <TouchableOpacity
-                style={[styles.iconBtn, { backgroundColor: t.isDark ? 'rgba(255,255,255,0.08)' : '#F2F2F7' }]}
-                onPress={handleDownload}
-                activeOpacity={0.8}
-              >
-                {downloading
-                  ? <ActivityIndicator size="small" color={t.text} />
-                  : <Ionicons name="cloud-download-outline" size={22} color={t.text} />
-                }
-              </TouchableOpacity>
+          {/* ── Actions ── */}
+          <View style={styles.actions}>
+            {/* Set Wallpaper */}
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={targetOpen ? closePicker : openPicker}
+              activeOpacity={0.78}
+            >
+              {settingWall ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Ionicons
+                    name={targetOpen ? 'close' : 'albums-outline'}
+                    size={16}
+                    color="#fff"
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.primaryLabel}>
+                    {targetOpen ? 'Cancel' : 'Set Wallpaper'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.applyBtn, { backgroundColor: accent }]}
-                onPress={() => togglePanel(!selecting)}
-                activeOpacity={0.88}
-              >
-                {settingWall
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.applyText}>{selecting ? 'Cancel' : 'Set Wallpaper'}</Text>
-                }
-              </TouchableOpacity>
-            </View>
+            {/* Download */}
+            <TouchableOpacity
+              style={[styles.squareBtn, { backgroundColor: subBg }]}
+              onPress={handleDownload}
+              activeOpacity={0.7}
+            >
+              {downloading
+                ? <ActivityIndicator size="small" color={textPri} />
+                : <Ionicons name="arrow-down-outline" size={20} color={textPri} />
+              }
+            </TouchableOpacity>
+
+            {/* Favourite */}
+            <TouchableOpacity
+              style={[styles.squareBtn, { backgroundColor: subBg }]}
+              onPress={() => { toggleFavorite({ ...params }); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={isFav ? 'heart' : 'heart-outline'}
+                size={20}
+                color={isFav ? '#FF375F' : textPri}
+              />
+            </TouchableOpacity>
           </View>
+
         </View>
       </Animated.View>
     </View>
@@ -243,141 +335,155 @@ export default function WallpaperDetail() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
 
-  headerSafe: {
+  vignette: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: H * 0.4,
+  },
+
+  // ── Top bar ─────────────────────────────────────────────────────────────────
+  topBar: {
     position: 'absolute',
     top: 0, left: 0, right: 0,
-    zIndex: 20,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
+    zIndex: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingTop: 2,
   },
-  backBtn: {
-    width: 40, height: 40,
-    borderRadius: RADIUS.pill,
+  topBtn: {
+    width: 36, height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.32)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  cardStack: {
+  // ── Sheet ────────────────────────────────────────────────────────────────────
+  sheetWrap: {
     position: 'absolute',
-    bottom: 0,
-    left: 0, right: 0,
+    left: 12, right: 12,
   },
-
-  // Selection panel (below card in stack)
-  panel: {
-    marginHorizontal: SPACING.sm,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
-    marginBottom: SPACING.xs,
-    ...SHADOW.md,
-  },
-  panelTitle: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: FONT_WEIGHT.extrabold,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  option: {
-    flex: 1,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.lg,
+  handleWrap: {
     alignItems: 'center',
-    gap: SPACING.xs,
+    paddingBottom: 7,
   },
-  optionLabel: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.bold,
+  handle: {
+    width: 32, height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.36)',
   },
-
-  // Info card
   card: {
-    marginHorizontal: SPACING.sm,
-    marginBottom: Platform.OS === 'ios' ? SPACING.xl : SPACING.md,
-    borderRadius: RADIUS.xl,
-    ...SHADOW.lg,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.22,
+        shadowRadius: 20,
+      },
+      android: { elevation: 14 },
+    }),
   },
-  cardInner: { padding: SPACING.lg },
 
-  titleRow: {
+  // ── Header ───────────────────────────────────────────────────────────────────
+  header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.md + 4,
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
   },
-  titleBlock: { flex: 1, marginRight: SPACING.sm },
   title: {
-    fontSize: FONT_SIZE.xxl - 2,
-    fontWeight: FONT_WEIGHT.extrabold,
-    letterSpacing: -0.5,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: 2,
   },
   author: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.medium,
-    marginTop: 3,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  favBtn: { paddingTop: 2 },
-
-  metaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
+  chips: {
+    alignItems: 'flex-end',
+    gap: 5,
   },
-  metaBox: {
-    width: '47%',
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.sm,
-    gap: SPACING.sm,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  metaIcon: {},
-  metaLabel: {
-    fontSize: FONT_SIZE.label,
-    fontWeight: FONT_WEIGHT.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  metaValue: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.bold,
-    marginTop: 1,
+  chipText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 
-  swatches: {
-    flexDirection: 'row',
-    gap: SPACING.xs,
-    marginBottom: SPACING.md,
-  },
-  swatch: {
-    width: 24, height: 24,
-    borderRadius: RADIUS.pill,
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginBottom: 12,
   },
 
-  btnRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
+  // ── Picker ────────────────────────────────────────────────────────────────────
+  picker: {
+    marginBottom: 0,
   },
-  iconBtn: {
-    width: 56, height: 56,
-    borderRadius: RADIUS.lg,
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 54,
+    gap: 12,
+  },
+  pickerIcon: {
+    width: 32, height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  applyBtn: {
+  pickerLabel: {
     flex: 1,
-    height: 56,
-    borderRadius: RADIUS.lg,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // ── Actions ───────────────────────────────────────────────────────────────────
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  primaryBtn: {
+    flex: 1,
+    height: 50,
+    backgroundColor: '#111',
+    borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.28,
+        shadowRadius: 10,
+      },
+      android: { elevation: 8 },
+    }),
   },
-  applyText: {
+  primaryLabel: {
     color: '#fff',
-    fontSize: FONT_SIZE.body,
-    fontWeight: FONT_WEIGHT.bold,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+  squareBtn: {
+    width: 50, height: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

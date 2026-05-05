@@ -10,7 +10,7 @@
 // For local dev, run `vercel dev` in wallzone-api/ and use localhost below.
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
-  'https://wallzone-api-cl.vercel.app'; // ← replace with your Vercel URL
+  'https://wallzone-api-cl.vercel.app/api/wallpapers'; // ← replace with your Vercel URL
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface Wallpaper {

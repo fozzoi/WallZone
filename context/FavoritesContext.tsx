@@ -30,9 +30,9 @@ export const FavoritesProvider = ({ children }: { children: React.ReactNode }) =
   const isFavorite = (id: string) => favorites.some(fav => fav.id === id);
 
   return (
-    <FavoritesContext.Provider value={{ favorites, toggleFavorite, isFavorite }}>
-      {children}
-    </FavoritesContext.Provider>
-  );
+    <FavoritesContext.Provider value={{ favorites, toggleFavorite, isFavorite }}>
+      {children}
+    </FavoritesContext.Provider>
+  );
 };
 
