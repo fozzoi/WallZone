@@ -61,7 +61,8 @@ export default function CategoriesScreen() {
         <Image
           source={{ uri: item.cover }}
           style={StyleSheet.absoluteFill}
-          contentFit="cover"
+          contentFit={tall ? 'cover' : 'contain'}
+          contentPosition="center"
           transition={350}
           recyclingKey={item.id}
         />
