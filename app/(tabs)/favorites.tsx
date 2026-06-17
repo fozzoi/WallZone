@@ -1,6 +1,5 @@
-/**
- * Favorites / Collection screen
- */
+// app/(tabs)/favorites.tsx
+
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,7 +31,11 @@ export default function FavoritesScreen() {
 
       {/* Content */}
       {count === 0 ? (
-        <EmptyState onExplore={() => router.push('/')} t={t} />
+        <EmptyState 
+          // FIX: Pass a timestamp parameter to force the home screen to react and scroll
+          onExplore={() => router.push({ pathname: '/', params: { scrollToTop: Date.now() } })} 
+          t={t} 
+        />
       ) : (
         <WallpaperGrid
           wallpapers={favorites}
@@ -65,6 +68,7 @@ function EmptyState({ onExplore, t }: { onExplore: () => void; t: any }) {
   );
 }
 
+// ... Keep your existing styles at the bottom ...
 const styles = StyleSheet.create({
   root: { flex: 1 },
 

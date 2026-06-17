@@ -1,10 +1,10 @@
-/**
- * Categories screen
- */
-import React, { useState, useEffect } from 'react';
+// app/(tabs)/categories.tsx
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, Dimensions, Platform,
+  RefreshControl, AppState, AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 
 import { LargeHeader } from '@/components/ui/PageHeader';
 import { fetchCategories } from '@/services/api';
+import { contentCache } from '@/services/cache';
 import { useTheme, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '@/constants/theme';
 
 const { width: W } = Dimensions.get('window');
@@ -28,12 +29,52 @@ export default function CategoriesScreen() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState('');
+  
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const appStateRef = useRef(AppState.currentState);
+
+  const loadCats = useCallback(async (options: { refresh?: boolean; silent?: boolean } = {}) => {
+    const { refresh = false, silent = false } = options;
+
+    if (!silent && !refresh) {
+      const cached = await contentCache.getCategories();
+      if (cached?.length) {
+        setCategories(cached);
+        setLoading(false);
+      }
+    }
+
+    if (!silent && !refresh) setLoading(true);
+    try {
+      const data = await fetchCategories(refresh);
+      setCategories(data);
+      await contentCache.setCategories(data);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchCategories()
-      .then(setCategories)
-      .finally(() => setLoading(false));
-  }, []);
+    loadCats({ refresh: true });
+  }, [loadCats]);
+
+  useEffect(() => {
+    const onAppStateChange = (nextState: AppStateStatus) => {
+      const wasBackground = appStateRef.current.match(/inactive|background/);
+      if (wasBackground && nextState === 'active') {
+        loadCats({ refresh: true, silent: true });
+      }
+      appStateRef.current = nextState;
+    };
+    const sub = AppState.addEventListener('change', onAppStateChange);
+    return () => sub.remove();
+  }, [loadCats]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadCats({ refresh: true, silent: true });
+    setIsRefreshing(false);
+  };
 
   const handleCategory = (id: string, label: string) => {
     Haptics.selectionAsync();
@@ -61,10 +102,11 @@ export default function CategoriesScreen() {
         <Image
           source={{ uri: item.cover }}
           style={StyleSheet.absoluteFill}
-          contentFit={tall ? 'cover' : 'contain'}
+          contentFit={tall ? 'cover' : 'fill'}
           contentPosition="center"
           transition={350}
           recyclingKey={item.id}
+          cachePolicy="memory-disk"
         />
       ) : null}
       <LinearGradient
@@ -94,7 +136,7 @@ export default function CategoriesScreen() {
         onSearchSubmit={handleSearch}
       />
 
-      {loading ? (
+      {loading && categories.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="small" color={t.accent} />
         </View>
@@ -103,6 +145,14 @@ export default function CategoriesScreen() {
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          // NEW: Add the RefreshControl here
+          refreshControl={
+            <RefreshControl 
+              refreshing={isRefreshing} 
+              onRefresh={handleRefresh} 
+              tintColor={t.accent} 
+            />
+          }
         >
           <View style={styles.columns}>
             <View style={styles.col}>
@@ -136,13 +186,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
     marginBottom: COL_GAP,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
+    ...Platform.select({  
       android: { elevation: 3 },
     }),
   },

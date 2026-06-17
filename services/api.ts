@@ -30,16 +30,25 @@ export interface Wallpaper {
 }
 
 // ─── Core fetcher ─────────────────────────────────────────────────────────────
-async function get(params: Record<string, string | number>): Promise<any> {
-  const qs = new URLSearchParams(
-    Object.entries(params).reduce((acc, [k, v]) => {
-      acc[k] = String(v);
-      return acc;
-    }, {} as Record<string, string>)
-  ).toString();
+async function get(
+  params: Record<string, string | number>,
+  options?: { refresh?: boolean }
+): Promise<any> {
+  const entries = Object.entries(params).reduce((acc, [k, v]) => {
+    acc[k] = String(v);
+    return acc;
+  }, {} as Record<string, string>);
+
+  if (options?.refresh) {
+    entries.refresh = '1';
+    entries._t = String(Date.now());
+  }
+
+  const qs = new URLSearchParams(entries).toString();
 
   const response = await fetch(`${API_URL}?${qs}`, {
     headers: { Accept: 'application/json' },
+    cache: options?.refresh ? 'no-store' : 'default',
   });
 
   if (!response.ok) {
@@ -53,9 +62,9 @@ async function get(params: Record<string, string | number>): Promise<any> {
 /**
  * Home screen – random mix of categories (no query = explore mode)
  */
-export async function fetchExplore(page = 1): Promise<Wallpaper[]> {
+export async function fetchExplore(page = 1, refresh = false): Promise<Wallpaper[]> {
   try {
-    const data = await get({ type: 'explore', page });
+    const data = await get({ type: 'explore', page }, { refresh });
     return data.wallpapers || [];
   } catch (err) {
     console.error('[fetchExplore]', err);
@@ -64,11 +73,11 @@ export async function fetchExplore(page = 1): Promise<Wallpaper[]> {
 }
 
 /**
- * Carousel – top-ranked wallpapers this month
+ * Carousel – diverse top wallpapers (rotates categories)
  */
-export async function fetchTrending(page = 1): Promise<Wallpaper[]> {
+export async function fetchTrending(page = 1, refresh = false): Promise<Wallpaper[]> {
   try {
-    const data = await get({ type: 'trending', page });
+    const data = await get({ type: 'trending', page }, { refresh });
     return data.wallpapers || [];
   } catch (err) {
     console.error('[fetchTrending]', err);
@@ -106,9 +115,9 @@ export async function fetchCategory(categoryId: string, page = 1): Promise<Wallp
 /**
  * Category list – all categories with cover images (for the Categories tab)
  */
-export async function fetchCategories(): Promise<{ id: string; label: string; cover: string; query: string }[]> {
+export async function fetchCategories(refresh = false): Promise<{ id: string; label: string; cover: string; query: string }[]> {
   try {
-    const data = await get({ type: 'categories' });
+    const data = await get({ type: 'categories' }, { refresh });
     return data.categories || [];
   } catch (err) {
     console.error('[fetchCategories]', err);

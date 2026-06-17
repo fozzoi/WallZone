@@ -1,6 +1,5 @@
-/**
- * View All screen – used for category drilldown and "See all" from carousel
- */
+// app/view-all.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,34 +23,43 @@ export default function ViewAllScreen() {
   const [loading, setLoading]       = useState(true);
   const [page, setPage]             = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
+  
+  // NEW: State for pull-to-refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isCat = isCategory === '1';
 
-  const load = useCallback(async (p: number, reset = false) => {
+  const load = useCallback(async (p: number, reset = false, isRefresh = false, bustCache = false) => {
+    if (reset && !isRefresh) setLoading(true);
     try {
       let data: Wallpaper[];
-      if (!query)     data = await fetchTrending(p);
+      if (!query)     data = await fetchTrending(p, bustCache);
       else if (isCat) data = await fetchCategory(query, p);
-      else             data = await fetchSearch(query, p);
+      else            data = await fetchSearch(query, p);
 
       setWallpapers(prev => (reset ? data : [...prev, ...data]));
       setPage(p);
     } finally {
-      reset ? setLoading(false) : setLoadingMore(false);
+      if (reset && !isRefresh) setLoading(false);
+      if (!reset) setLoadingMore(false);
     }
   }, [query, isCat]);
 
   useEffect(() => {
-    setLoading(true);
-    setPage(1);
     load(1, true);
   }, [query]);
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await load(1, true, true, true);
+    setIsRefreshing(false);
+  };
+
   const loadMore = useCallback(async () => {
-    if (loadingMore || loading) return;
+    if (loadingMore || loading || isRefreshing) return;
     setLoadingMore(true);
     await load(page + 1, false);
-  }, [loadingMore, loading, page, load]);
+  }, [loadingMore, loading, isRefreshing, page, load]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
@@ -67,11 +75,15 @@ export default function ViewAllScreen() {
           onLoadMore={loadMore}
           isLoadingMore={loadingMore}
           emptyMessage="No wallpapers found"
+          // NEW: Pass refresh props
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
         />
       )}
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   root:   { flex: 1 },

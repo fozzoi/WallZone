@@ -82,11 +82,12 @@ export default function WallpaperCarousel({ title = 'Trending', data, onSeeAll }
           }
         >
           <Image
-            source={{ uri: item.url }}
+            source={{ uri: item.previewUrl || item.url }}
             style={StyleSheet.absoluteFill}
             contentFit="cover"
             transition={200}
             recyclingKey={item.id}
+            cachePolicy="memory-disk"
           />
 
           <LinearGradient
