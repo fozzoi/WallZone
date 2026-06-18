@@ -1,7 +1,7 @@
 // app/(tabs)/index.tsx
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet, AppState, AppStateStatus } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
@@ -30,8 +30,8 @@ export default function ExploreScreen() {
 
   const isFetchingRef = useRef(false);
   const listRef = useRef<FlashList<any>>(null);
-  const appStateRef = useRef(AppState.currentState);
   const hasLoadedOnce = useRef(false);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     if (params.scrollToTop) {
@@ -46,25 +46,27 @@ export default function ExploreScreen() {
     setPage(1);
   }, []);
 
-  const loadInitial = useCallback(async (options: { refresh?: boolean; silent?: boolean } = {}) => {
-    const { refresh = false, silent = false } = options;
+  const loadInitial = useCallback(async (options: { silent?: boolean } = {}) => {
+    const { silent = false } = options;
 
     if (!silent) {
+      // Show cached content instantly while fresh data loads
       const cached = await contentCache.getExplore();
       if (cached?.wallpapers?.length) {
         applyFeed(cached.wallpapers, cached.trending || []);
         setLoading(false);
-      } else if (!refresh) {
+      } else {
         setLoading(true);
       }
     }
 
     try {
       const [grid, carousel] = await Promise.all([
-        fetchExplore(1, refresh),
-        fetchTrending(1, refresh),
+        fetchExplore(1),
+        fetchTrending(1),
       ]);
       applyFeed(grid, carousel);
+      setHasMore(grid.length > 0);
       hasLoadedOnce.current = true;
       await contentCache.setExplore({ wallpapers: grid, trending: carousel.slice(0, 6) });
     } finally {
@@ -72,28 +74,16 @@ export default function ExploreScreen() {
     }
   }, [applyFeed]);
 
-  // Initial load — show cache instantly, then fetch fresh
+  // Initial load — show cache instantly, then fetch once (no auto-refresh)
   useEffect(() => {
-    loadInitial({ refresh: true });
+    loadInitial();
   }, [loadInitial]);
 
-  // Refresh whenever the app returns to foreground
-  useEffect(() => {
-    const onAppStateChange = (nextState: AppStateStatus) => {
-      const wasBackground = appStateRef.current.match(/inactive|background/);
-      if (wasBackground && nextState === 'active' && !query.trim()) {
-        loadInitial({ refresh: true, silent: true });
-      }
-      appStateRef.current = nextState;
-    };
-
-    const sub = AppState.addEventListener('change', onAppStateChange);
-    return () => sub.remove();
-  }, [loadInitial, query]);
-
+  // Manual pull-to-refresh — the ONLY way content refreshes
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadInitial({ refresh: true, silent: true });
+    setHasMore(true);
+    await loadInitial({ silent: true });
     setIsRefreshing(false);
   };
 
@@ -103,6 +93,7 @@ export default function ExploreScreen() {
     const timer = setTimeout(async () => {
       setLoading(true);
       setPage(1);
+      setHasMore(true);
       try {
         const data = await fetchSearch(query, 1);
         setWallpapers(data);
@@ -117,12 +108,14 @@ export default function ExploreScreen() {
   const handleSearch = useCallback((text: string) => {
     setQuery(text);
     if (!text.trim() && hasLoadedOnce.current) {
+      setHasMore(true);
       loadInitial({ silent: true });
     }
   }, [loadInitial]);
 
   const loadMore = useCallback(async () => {
-    if (isFetchingRef.current || loading || isRefreshing) return;
+    // Guard: don't fetch while already fetching, refreshing, or no more pages
+    if (isFetchingRef.current || isRefreshing || !hasMore) return;
 
     isFetchingRef.current = true;
     setLoadingMore(true);
@@ -140,12 +133,15 @@ export default function ExploreScreen() {
           return [...prev, ...uniqueNew];
         });
         setPage(next);
+      } else {
+        // No more results from Wallhaven
+        setHasMore(false);
       }
     } finally {
       isFetchingRef.current = false;
       setLoadingMore(false);
     }
-  }, [loading, isRefreshing, page, query]);
+  }, [isRefreshing, hasMore, page, query]);
 
   const carousel = !query.trim() && trending.length > 0 ? (
     <WallpaperCarousel
