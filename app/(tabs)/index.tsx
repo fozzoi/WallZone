@@ -27,8 +27,8 @@ import { contentCache } from '@/services/cache';
 const { width: W } = Dimensions.get('window');
 
 // ─── Collapse thresholds ───────────────────────────────────────────────────────
-const HEADER_EXPANDED_H = 96; // logo (35) + margin (8) + search (40) + bottom padding (13)
-const HEADER_COLLAPSED_H = 56; // search (40) + vertical padding (16)
+const HEADER_EXPANDED_H = 106; // logo (32) + margin top (12) + margin bottom (10) + search (40) + bottom padding (12)
+const HEADER_COLLAPSED_H = 64;  // search (40) + vertical padding (24)
 const COLLAPSE_START = 0;
 const COLLAPSE_END = 50;
 
@@ -76,7 +76,7 @@ export default function ExploreScreen() {
 
   const searchTranslateY = scrollY.interpolate({
     inputRange: [COLLAPSE_START, COLLAPSE_END],
-    outputRange: [0, -43],
+    outputRange: [0, -42],
     extrapolate: 'clamp',
   });
 
@@ -211,11 +211,15 @@ export default function ExploreScreen() {
         ]}
         pointerEvents="box-none"
       >
-        {/* Blur backing */}
+        {/* Blur backing with Android compatibility */}
         <BlurView
-          intensity={Platform.OS === 'android' ? 80 : 55}
+          intensity={Platform.OS === 'android' ? 85 : 55}
           tint="dark"
-          style={StyleSheet.absoluteFill}
+          style={[
+            StyleSheet.absoluteFill,
+            Platform.OS === 'android' && { backgroundColor: 'rgba(15, 15, 15, 0.85)' }
+          ]}
+          experimentalBlurMethod="dimezisBlurView"
         />
 
         {/* Glass border bottom */}
@@ -309,8 +313,6 @@ const styles = StyleSheet.create({
     zIndex: 100,
     overflow: 'hidden',
     paddingHorizontal: SPACING.lg,
-    paddingBottom: 10,
-    justifyContent: 'flex-end',
   },
   headerBorder: {
     position: 'absolute',
@@ -325,6 +327,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 12,
     marginBottom: 10,
   },
   logoText: {
