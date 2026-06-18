@@ -28,8 +28,6 @@ export default function CategoriesScreen() {
 
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [search, setSearch]         = useState('');
-  
   const [isRefreshing, setIsRefreshing] = useState(false);
   const appStateRef = useRef(AppState.currentState);
 
@@ -81,13 +79,6 @@ export default function CategoriesScreen() {
     router.push({ pathname: '/view-all', params: { query: id, title: label, isCategory: '1' } });
   };
 
-  const handleSearch = () => {
-    if (!search.trim()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/view-all', params: { query: search.trim(), title: `"${search.trim()}"` } });
-  };
-
-  // Two-column masonry: alternate tall/short per column
   const left  = categories.filter((_, i) => i % 2 === 0);
   const right = categories.filter((_, i) => i % 2 !== 0);
 
@@ -130,10 +121,6 @@ export default function CategoriesScreen() {
       <LargeHeader
         title="Discover"
         subtitle={`${categories.length} categories`}
-        searchPlaceholder="Search wallpapers…"
-        onSearch={setSearch}
-        searchValue={search}
-        onSearchSubmit={handleSearch}
       />
 
       {loading && categories.length === 0 ? (
@@ -144,13 +131,11 @@ export default function CategoriesScreen() {
         <ScrollView
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          // NEW: Add the RefreshControl here
           refreshControl={
-            <RefreshControl 
-              refreshing={isRefreshing} 
-              onRefresh={handleRefresh} 
-              tintColor={t.accent} 
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={t.accent}
             />
           }
         >
@@ -186,7 +171,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
     marginBottom: COL_GAP,
-    ...Platform.select({  
+    ...Platform.select({
       android: { elevation: 3 },
     }),
   },

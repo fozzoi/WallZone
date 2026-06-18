@@ -41,7 +41,8 @@ export default function ExploreScreen() {
 
   const applyFeed = useCallback((grid: Wallpaper[], carousel: Wallpaper[]) => {
     setWallpapers(grid);
-    setTrending(carousel.slice(0, 6));
+    const carouselData = carousel.length > 0 ? carousel : grid.slice(0, 6);
+    setTrending(carouselData.slice(0, 6));
     setPage(1);
   }, []);
 
