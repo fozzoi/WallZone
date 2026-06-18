@@ -19,7 +19,9 @@ export interface Wallpaper {
   fullUrl: string;
   previewUrl?: string;
   title: string;
+  tags?: string[];       // all tag names from Wallhaven
   author: string;
+  source?: string;       // e.g. 'Wallhaven'
   height: number;
   resolution?: string;
   views?: number;

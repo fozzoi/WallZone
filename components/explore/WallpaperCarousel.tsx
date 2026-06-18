@@ -78,7 +78,24 @@ export default function WallpaperCarousel({ title = 'Trending', data, onSeeAll }
           style={[styles.card, { backgroundColor: t.card }]}
           activeOpacity={0.88}
           onPress={() =>
-            router.push({ pathname: '/wallpaper/[id]', params: { id: item.id, ...item } })
+            router.push({
+              pathname: '/wallpaper/[id]',
+              params: {
+                id: item.id,
+                url: item.url,
+                fullUrl: item.fullUrl || item.url,
+                title: item.title || 'Wallpaper',
+                tagsJson: JSON.stringify(item.tags ?? []),
+                author: item.author || 'Wallhaven',
+                source: item.source || 'Wallhaven',
+                height: String(item.height ?? 280),
+                resolution: item.resolution || '',
+                views: String(item.views ?? 0),
+                favoritesCount: String(item.favorites ?? 0),
+                colorsJson: JSON.stringify(item.colors ?? []),
+                fileSize: String(item.fileSize ?? 0),
+              },
+            })
           }
         >
           <Image
@@ -107,7 +124,7 @@ export default function WallpaperCarousel({ title = 'Trending', data, onSeeAll }
                   {item.title || 'Wallpaper'}
                 </Text>
                 <Text style={styles.cardSub} numberOfLines={1}>
-                  by {item.author || 'WallZone'}
+                  by {item.author || 'Wallhaven'}
                 </Text>
               </View>
               <Pressable

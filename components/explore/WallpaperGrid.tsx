@@ -63,7 +63,7 @@ const WallpaperCard = React.memo(({
             BlurView is a massive performance killer in scrolling lists. */}
         <View style={styles.infoPill}>
           <Text style={styles.authorText} numberOfLines={1}>
-            {item.author || 'WallZone'}
+            {item.author || 'Wallhaven'}
           </Text>
           <Pressable
             onPress={() => onToggleFav(item)}
@@ -124,7 +124,9 @@ const WallpaperGrid = forwardRef<FlashList<any>, Props>(({
         url: item.url,
         fullUrl: item.fullUrl || item.url,
         title: item.title || 'Wallpaper',
-        author: item.author || 'Unknown',
+        tagsJson: JSON.stringify(item.tags ?? []),
+        author: item.author || 'Wallhaven',
+        source: item.source || 'Wallhaven',
         height: String(item.height ?? 280),
         resolution: item.resolution || '',
         views: String(item.views ?? 0),

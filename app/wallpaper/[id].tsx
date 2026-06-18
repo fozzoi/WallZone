@@ -5,7 +5,7 @@ import React, { useContext, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, Pressable,
   StyleSheet, StatusBar, ActivityIndicator,
-  Animated, Easing, Dimensions, Platform,
+  Animated, Easing, Dimensions, Platform, ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -35,6 +35,12 @@ export default function WallpaperDetail() {
 
   const imageUrl = params.fullUrl || params.url || '';
   const isFav    = isFavorite(params.id);
+
+  // Parse tags from JSON string passed via route params
+  const tags: string[] = (() => {
+    try { return JSON.parse(params.tagsJson as string || '[]'); }
+    catch { return []; }
+  })();
 
   const [downloading, setDownloading] = useState(false);
   const [settingWall, setSettingWall] = useState(false);
@@ -124,7 +130,11 @@ export default function WallpaperDetail() {
 
   const formatTitle = (raw: any) => {
     if (!raw || typeof raw !== 'string') return 'Wallpaper';
-    return raw.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+    // Clean underscores and hyphens, title-case each word
+    return raw
+      .replace(/[_-]/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase())
+      .trim();
   };
 
   const isDark   = t.isDark;
@@ -215,7 +225,8 @@ export default function WallpaperDetail() {
                 {formatTitle(params.title)}
               </Text>
               <Text style={[styles.author, { color: textSec }]}>
-                by {params.author || 'Wallheven'}
+                by {params.author || 'Wallhaven'}
+                {params.source ? `  ·  ${params.source}` : ''}
               </Text>
             </View>
 
@@ -238,6 +249,27 @@ export default function WallpaperDetail() {
 
           {/* Divider */}
           <View style={[styles.divider, { backgroundColor: divider }]} />
+
+          {/* ── Tags ── */}
+          {tags.length > 0 && (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tagsRow}
+                style={{ marginBottom: 12 }}
+              >
+                {tags.map((tag, idx) => (
+                  <View key={idx} style={[styles.tagPill, { backgroundColor: subBg }]}>
+                    <Text style={[styles.tagText, { color: textPri }]}>
+                      {tag.replace(/[_]/g, ' ')}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={[styles.divider, { backgroundColor: divider }]} />
+            </>
+          )}
 
           {/* ── Picker (animated height) ── */}
           <Animated.View
@@ -427,6 +459,24 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     marginBottom: 12,
+  },
+
+  // ── Tags ──────────────────────────────────────────────────────────────────────
+  tagsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingRight: 4,
+  },
+  tagPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    textTransform: 'capitalize',
   },
 
   // ── Picker ────────────────────────────────────────────────────────────────────
