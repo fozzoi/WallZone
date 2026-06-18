@@ -1,41 +1,48 @@
 /**
  * Wallpaper Detail — [id].tsx
  */
-import React, { useContext, useRef, useState } from 'react';
-import {
-  View, Text, TouchableOpacity, Pressable,
-  StyleSheet, StatusBar, ActivityIndicator,
-  Animated, Easing, Dimensions, Platform, ScrollView,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
+import { useContext, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text, TouchableOpacity,
+  View,
+} from 'react-native';
 import ManageWallpaper, { TYPE } from 'react-native-manage-wallpaper';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FavoritesContext } from '@/context/FavoritesContext';
 import { useTheme } from '@/constants/theme';
+import { FavoritesContext } from '@/context/FavoritesContext';
 import { trackDownload } from '@/services/api';
 
 const { height: H } = Dimensions.get('window');
 type Target = 'home' | 'lock' | 'both';
 
-const SHEET_OPEN   = 0;
+const SHEET_OPEN = 0;
 const SHEET_HIDDEN = 206;
 
 export default function WallpaperDetail() {
   const params = useLocalSearchParams<any>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const t      = useTheme();
+  const t = useTheme();
   const { isFavorite, toggleFavorite } = useContext(FavoritesContext);
 
   const imageUrl = params.fullUrl || params.url || '';
-  const isFav    = isFavorite(params.id);
+  const isFav = isFavorite(params.id);
 
   // Parse tags from JSON string passed via route params
   const tags: string[] = (() => {
@@ -45,11 +52,11 @@ export default function WallpaperDetail() {
 
   const [downloading, setDownloading] = useState(false);
   const [settingWall, setSettingWall] = useState(false);
-  const [targetOpen,  setTargetOpen]  = useState(false);
-  const [collapsed,   setCollapsed]   = useState(false);
+  const [targetOpen, setTargetOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
-  const sheetY     = useRef(new Animated.Value(SHEET_OPEN)).current;
-  const pickerH    = useRef(new Animated.Value(0)).current;
+  const sheetY = useRef(new Animated.Value(SHEET_OPEN)).current;
+  const pickerH = useRef(new Animated.Value(0)).current;
   const pickerOpac = useRef(new Animated.Value(0)).current;
 
   // ── Sheet ──────────────────────────────────────────────────────────────────
@@ -118,7 +125,7 @@ export default function WallpaperDetail() {
     setDownloading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const ext  = imageUrl.endsWith('.png') ? 'png' : 'jpg';
+      const ext = imageUrl.endsWith('.png') ? 'png' : 'jpg';
       const path = `${FileSystem.cacheDirectory}wz_${params.id}.${ext}`;
       const { uri } = await FileSystem.downloadAsync(imageUrl, path);
       await MediaLibrary.saveToLibraryAsync(uri);
@@ -140,18 +147,18 @@ export default function WallpaperDetail() {
       .trim();
   };
 
-  const isDark   = t.isDark;
-  const sheetBg  = isDark ? '#1C1C1E' : '#FFFFFF';
-  const subBg    = isDark ? '#2C2C2E' : '#F2F2F7';
-  const sub2Bg   = isDark ? '#3A3A3C' : '#E5E5EA';
-  const textPri  = isDark ? '#FFFFFF' : '#000000';
-  const textSec  = isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.36)';
-  const divider  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+  const isDark = t.isDark;
+  const sheetBg = isDark ? '#1C1C1E' : '#FFFFFF';
+  const subBg = isDark ? '#2C2C2E' : '#F2F2F7';
+  const sub2Bg = isDark ? '#3A3A3C' : '#E5E5EA';
+  const textPri = isDark ? '#FFFFFF' : '#000000';
+  const textSec = isDark ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.36)';
+  const divider = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
 
   // Picker height interpolation — 3 rows × 54px + 12px padding
   const pickerMaxH = 3 * 54 + 12;
   const pickerHeightInterp = pickerH.interpolate({
-    inputRange:  [0, 1],
+    inputRange: [0, 1],
     outputRange: [0, pickerMaxH],
   });
 
@@ -293,8 +300,8 @@ export default function WallpaperDetail() {
             <View style={styles.picker}>
               {([
                 { id: 'home' as Target, icon: 'phone-portrait-outline', label: 'Home Screen' },
-                { id: 'lock' as Target, icon: 'lock-closed-outline',    label: 'Lock Screen' },
-                { id: 'both' as Target, icon: 'layers-outline',         label: 'Both Screens' },
+                { id: 'lock' as Target, icon: 'lock-closed-outline', label: 'Lock Screen' },
+                { id: 'both' as Target, icon: 'layers-outline', label: 'Both Screens' },
               ]).map((opt, i, arr) => (
                 <TouchableOpacity
                   key={opt.id}

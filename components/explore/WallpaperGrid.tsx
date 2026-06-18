@@ -28,7 +28,8 @@ const WallpaperCard = React.memo(({
   isFav, 
   onPress, 
   onToggleFav, 
-  cardColor 
+  cardColor,
+  quality
 }: { 
   item: Wallpaper; 
   isFav: boolean; 

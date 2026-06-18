@@ -4,6 +4,7 @@ import { View, StyleSheet, TouchableOpacity, Dimensions, Platform, useColorSchem
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { RADIUS } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
