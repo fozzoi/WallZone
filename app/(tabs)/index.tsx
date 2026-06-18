@@ -1,7 +1,7 @@
 // app/(tabs)/index.tsx
 
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -211,16 +211,8 @@ export default function ExploreScreen() {
         ]}
         pointerEvents="box-none"
       >
-        {/* Blur backing with Android compatibility */}
-        <BlurView
-          intensity={Platform.OS === 'android' ? 85 : 55}
-          tint="dark"
-          style={[
-            StyleSheet.absoluteFill,
-            Platform.OS === 'android' && { backgroundColor: 'rgba(15, 15, 15, 0.85)' }
-          ]}
-          experimentalBlurMethod="dimezisBlurView"
-        />
+        {/* Header background fallback */}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(16, 16, 16, 1)' }]} />
 
         {/* Glass border bottom */}
         <View style={styles.headerBorder} />
@@ -320,14 +312,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 0.5,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0)',
   },
 
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 5,
     marginBottom: 10,
   },
   logoText: {
@@ -361,12 +353,12 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: RADIUS.lg,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 0.8,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: 12,
-    height: 40,
+    height: 44,
   },
   searchBarFocused: {
     backgroundColor: 'rgba(255,255,255,0.10)',
