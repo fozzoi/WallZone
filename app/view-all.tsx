@@ -1,6 +1,6 @@
 // app/view-all.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -23,43 +23,62 @@ export default function ViewAllScreen() {
   const [loading, setLoading]       = useState(true);
   const [page, setPage]             = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-  
-  // NEW: State for pull-to-refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasMore, setHasMore]       = useState(true);
+  const isFetchingRef = useRef(false);
 
   const isCat = isCategory === '1';
 
-  const load = useCallback(async (p: number, reset = false, isRefresh = false, bustCache = false) => {
-    if (reset && !isRefresh) setLoading(true);
+  const load = useCallback(async (p: number, reset = false) => {
+    if (reset) setLoading(true);
     try {
       let data: Wallpaper[];
-      if (!query)     data = await fetchTrending(p, bustCache);
+      if (!query)     data = await fetchTrending(p);
       else if (isCat) data = await fetchCategory(query, p);
       else            data = await fetchSearch(query, p);
 
-      setWallpapers(prev => (reset ? data : [...prev, ...data]));
+      if (reset) {
+        setWallpapers(data);
+        setHasMore(data.length > 0);
+      } else {
+        if (data.length === 0) {
+          setHasMore(false);
+        } else {
+          setWallpapers(prev => {
+            const existingIds = new Set(prev.map(w => w.id));
+            const unique = data.filter(w => !existingIds.has(w.id));
+            return [...prev, ...unique];
+          });
+          setHasMore(true);
+        }
+      }
       setPage(p);
     } finally {
-      if (reset && !isRefresh) setLoading(false);
-      if (!reset) setLoadingMore(false);
+      setLoading(false);
+      setLoadingMore(false);
     }
   }, [query, isCat]);
 
   useEffect(() => {
+    setHasMore(true);
     load(1, true);
   }, [query]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await load(1, true, true, true);
+    setHasMore(true);
+    await load(1, true);
     setIsRefreshing(false);
   };
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || loading || isRefreshing) return;
+    // Guard: skip if already fetching, refreshing, or no more pages
+    if (isFetchingRef.current || isRefreshing || !hasMore) return;
+    isFetchingRef.current = true;
     setLoadingMore(true);
     await load(page + 1, false);
-  }, [loadingMore, loading, isRefreshing, page, load]);
+    isFetchingRef.current = false;
+  }, [isRefreshing, hasMore, page, load]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
