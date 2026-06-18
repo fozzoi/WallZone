@@ -168,7 +168,7 @@ export default function WallpaperDetail() {
 
       {/* Vignette */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.52)']}
+        colors={['transparent', 'rgba(0,0,0,0.65)']}
         style={styles.vignette}
         pointerEvents="none"
       />
@@ -198,6 +198,35 @@ export default function WallpaperDetail() {
         </TouchableOpacity>
       </SafeAreaView>
 
+      {/* ── Floating Tags Row (always visible) ── */}
+      {tags.length > 0 && (
+        <Animated.View
+          style={[
+            styles.tagsFloat,
+            {
+              bottom: insets.bottom + 16 + 230,
+              transform: [{ translateY: sheetY }],
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tagsRow}
+            pointerEvents="none"
+          >
+            {tags.map((tag, idx) => (
+              <View key={idx} style={styles.tagPill}>
+                <Text style={styles.tagText}>
+                  # {tag.replace(/[_]/g, ' ')}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </Animated.View>
+      )}
+
       {/* ── Sheet ── */}
       <Animated.View
         style={[
@@ -221,7 +250,7 @@ export default function WallpaperDetail() {
           {/* ── Header ── */}
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: textPri }]} numberOfLines={1}>
+              <Text style={[styles.title, { color: textPri }]} numberOfLines={2}>
                 {formatTitle(params.title)}
               </Text>
               <Text style={[styles.author, { color: textSec }]}>
@@ -249,27 +278,6 @@ export default function WallpaperDetail() {
 
           {/* Divider */}
           <View style={[styles.divider, { backgroundColor: divider }]} />
-
-          {/* ── Tags ── */}
-          {tags.length > 0 && (
-            <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tagsRow}
-                style={{ marginBottom: 12 }}
-              >
-                {tags.map((tag, idx) => (
-                  <View key={idx} style={[styles.tagPill, { backgroundColor: subBg }]}>
-                    <Text style={[styles.tagText, { color: textPri }]}>
-                      {tag.replace(/[_]/g, ' ')}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
-              <View style={[styles.divider, { backgroundColor: divider }]} />
-            </>
-          )}
 
           {/* ── Picker (animated height) ── */}
           <Animated.View
