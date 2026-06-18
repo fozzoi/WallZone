@@ -19,6 +19,7 @@ import ManageWallpaper, { TYPE } from 'react-native-manage-wallpaper';
 
 import { FavoritesContext } from '@/context/FavoritesContext';
 import { useTheme } from '@/constants/theme';
+import { trackDownload } from '@/services/api';
 
 const { height: H } = Dimensions.get('window');
 type Target = 'home' | 'lock' | 'both';
@@ -104,6 +105,7 @@ export default function WallpaperDetail() {
       ManageWallpaper.setWallpaper({ uri: imageUrl }, () => {
         setSettingWall(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (params.download_location) trackDownload(params.download_location);
       }, map[target]);
     }, 280);
   };
@@ -121,6 +123,7 @@ export default function WallpaperDetail() {
       const { uri } = await FileSystem.downloadAsync(imageUrl, path);
       await MediaLibrary.saveToLibraryAsync(uri);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (params.download_location) trackDownload(params.download_location);
     } catch (e) {
       console.error(e);
     } finally {

@@ -29,6 +29,7 @@ export interface Wallpaper {
   colors?: string[];
   fileSize?: number;
   category?: string;
+  download_location?: string;
 }
 
 // ─── Core fetcher ─────────────────────────────────────────────────────────────
@@ -124,5 +125,19 @@ export async function fetchCategories(refresh = false): Promise<{ id: string; la
   } catch (err) {
     console.error('[fetchCategories]', err);
     return [];
+  }
+}
+
+/**
+ * Track Unsplash Download
+ * Required by Unsplash API Guidelines. Hits our proxy endpoint.
+ */
+export async function trackDownload(downloadLocationUrl?: string): Promise<void> {
+  if (!downloadLocationUrl) return;
+  try {
+    const qs = new URLSearchParams({ downloadUrl: downloadLocationUrl }).toString();
+    fetch(`${API_URL.replace('/wallpapers', '/track-download')}?${qs}`).catch(() => {});
+  } catch (err) {
+    console.error('[trackDownload]', err);
   }
 }
