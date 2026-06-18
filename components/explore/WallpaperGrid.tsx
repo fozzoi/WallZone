@@ -13,7 +13,7 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { FavoritesContext } from '@/context/FavoritesContext';
 import { useSettings } from '@/context/SettingsContext';
@@ -109,7 +109,7 @@ interface Props {
   isRefreshing?: boolean;
 }
 
-const WallpaperGrid = forwardRef<FlashList<any>, Props>(({
+const WallpaperGrid = forwardRef<FlashListRef<any>, Props>(({
   wallpapers,
   header,
   onLoadMore,

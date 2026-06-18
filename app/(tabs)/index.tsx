@@ -1,44 +1,104 @@
 // app/(tabs)/index.tsx
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { FlashList } from '@shopify/flash-list';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { LargeHeader } from '@/components/ui/PageHeader';
-import WallpaperGrid from '@/components/explore/WallpaperGrid';
 import WallpaperCarousel from '@/components/explore/WallpaperCarousel';
-import { fetchExplore, fetchTrending, fetchSearch } from '@/services/api';
-import { contentCache } from '@/services/cache';
-import { useTheme } from '@/constants/theme';
+import WallpaperGrid from '@/components/explore/WallpaperGrid';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING, useTheme } from '@/constants/theme';
 import type { Wallpaper } from '@/services/api';
+import { fetchExplore, fetchSearch, fetchTrending } from '@/services/api';
+import { contentCache } from '@/services/cache';
+
+const { width: W } = Dimensions.get('window');
+
+// ─── Collapse thresholds ───────────────────────────────────────────────────────
+const HEADER_EXPANDED_H = 110; // logo + search row
+const HEADER_COLLAPSED_H = 54;
+const COLLAPSE_START = 10;
+const COLLAPSE_END = 80;
 
 export default function ExploreScreen() {
   const t = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const [query, setQuery]         = useState('');
+  const [query, setQuery] = useState('');
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
-  const [trending, setTrending]   = useState<Wallpaper[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [page, setPage]           = useState(1);
-
+  const [trending, setTrending] = useState<Wallpaper[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const isFetchingRef = useRef(false);
   const listRef = useRef<FlashList<any>>(null);
   const hasLoadedOnce = useRef(false);
-  const [hasMore, setHasMore] = useState(true);
+  const searchInputRef = useRef<TextInput>(null);
 
+  // ─── Scroll-driven header animation ─────────────────────────────────────────
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const headerHeight = scrollY.interpolate({
+    inputRange: [COLLAPSE_START, COLLAPSE_END],
+    outputRange: [HEADER_EXPANDED_H, HEADER_COLLAPSED_H],
+    extrapolate: 'clamp',
+  });
+
+  const logoScale = scrollY.interpolate({
+    inputRange: [COLLAPSE_START, COLLAPSE_END],
+    outputRange: [1, 0.72],
+    extrapolate: 'clamp',
+  });
+
+  const logoTranslateY = scrollY.interpolate({
+    inputRange: [COLLAPSE_START, COLLAPSE_END],
+    outputRange: [0, -4],
+    extrapolate: 'clamp',
+  });
+
+  const searchOpacity = scrollY.interpolate({
+    inputRange: [COLLAPSE_START, COLLAPSE_END * 0.6],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const searchTranslateY = scrollY.interpolate({
+    inputRange: [COLLAPSE_START, COLLAPSE_END],
+    outputRange: [0, -8],
+    extrapolate: 'clamp',
+  });
+
+  const miniSearchOpacity = scrollY.interpolate({
+    inputRange: [COLLAPSE_END * 0.7, COLLAPSE_END],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  // ─── scroll-to-top from tab press ────────────────────────────────────────────
   useEffect(() => {
     if (params.scrollToTop) {
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
     }
   }, [params.scrollToTop]);
 
+  // ─── Data helpers ─────────────────────────────────────────────────────────────
   const applyFeed = useCallback((grid: Wallpaper[], carousel: Wallpaper[]) => {
     setWallpapers(grid);
     const carouselData = carousel.length > 0 ? carousel : grid.slice(0, 6);
@@ -50,7 +110,6 @@ export default function ExploreScreen() {
     const { silent = false } = options;
 
     if (!silent) {
-      // Show cached content instantly while fresh data loads
       const cached = await contentCache.getExplore();
       if (cached?.wallpapers?.length) {
         applyFeed(cached.wallpapers, cached.trending || []);
@@ -74,12 +133,8 @@ export default function ExploreScreen() {
     }
   }, [applyFeed]);
 
-  // Initial load — show cache instantly, then fetch once (no auto-refresh)
-  useEffect(() => {
-    loadInitial();
-  }, [loadInitial]);
+  useEffect(() => { loadInitial(); }, [loadInitial]);
 
-  // Manual pull-to-refresh — the ONLY way content refreshes
   const handleRefresh = async () => {
     setIsRefreshing(true);
     setHasMore(true);
@@ -87,9 +142,9 @@ export default function ExploreScreen() {
     setIsRefreshing(false);
   };
 
+  // ─── Search ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!query.trim()) return;
-
     const timer = setTimeout(async () => {
       setLoading(true);
       setPage(1);
@@ -113,28 +168,29 @@ export default function ExploreScreen() {
     }
   }, [loadInitial]);
 
-  const loadMore = useCallback(async () => {
-    // Guard: don't fetch while already fetching, refreshing, or no more pages
-    if (isFetchingRef.current || isRefreshing || !hasMore) return;
+  const handleClearSearch = useCallback(() => {
+    setQuery('');
+    searchInputRef.current?.blur();
+    if (hasLoadedOnce.current) loadInitial({ silent: true });
+  }, [loadInitial]);
 
+  // ─── Pagination ───────────────────────────────────────────────────────────────
+  const loadMore = useCallback(async () => {
+    if (isFetchingRef.current || isRefreshing || !hasMore) return;
     isFetchingRef.current = true;
     setLoadingMore(true);
-
     try {
       const next = page + 1;
       const fresh = query.trim()
         ? await fetchSearch(query, next)
         : await fetchExplore(next);
-
       if (fresh.length > 0) {
         setWallpapers(prev => {
           const existingIds = new Set(prev.map(w => w.id));
-          const uniqueNew = fresh.filter(w => !existingIds.has(w.id));
-          return [...prev, ...uniqueNew];
+          return [...prev, ...fresh.filter(w => !existingIds.has(w.id))];
         });
         setPage(next);
       } else {
-        // No more results from Wallhaven
         setHasMore(false);
       }
     } finally {
@@ -142,6 +198,10 @@ export default function ExploreScreen() {
       setLoadingMore(false);
     }
   }, [isRefreshing, hasMore, page, query]);
+
+  // ─── Header total height = animated area + safe area top ─────────────────────
+  const topInset = insets.top;
+  const totalHeaderH = Animated.add(headerHeight, new Animated.Value(topInset));
 
   const carousel = !query.trim() && trending.length > 0 ? (
     <WallpaperCarousel
@@ -152,38 +212,196 @@ export default function ExploreScreen() {
   ) : null;
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
-      {/* Premium Header */}
-      <LargeHeader
-        title="WallZone"
-        isLogo={true}
-        searchPlaceholder="Search wallpapers..."
-        searchValue={query}
-        onSearch={setQuery}
-        onSearchSubmit={() => {}}
-      />
+    <View style={[styles.root, { backgroundColor: t.bg }]}>
 
-      {loading && wallpapers.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={t.accent} />
-        </View>
-      ) : (
-        <WallpaperGrid
-          ref={listRef}
-          wallpapers={wallpapers}
-          header={carousel}
-          onLoadMore={loadMore}
-          isLoadingMore={loadingMore}
-          emptyMessage="No results found — try a different keyword"
-          onRefresh={handleRefresh}
-          isRefreshing={isRefreshing}
+      {/* ── Floating Header ── */}
+      <Animated.View
+        style={[
+          styles.header,
+          { paddingTop: topInset + 6, height: totalHeaderH },
+        ]}
+        pointerEvents="box-none"
+      >
+        {/* Blur backing */}
+        <BlurView
+          intensity={Platform.OS === 'android' ? 80 : 55}
+          tint="dark"
+          style={StyleSheet.absoluteFill}
         />
-      )}
-    </SafeAreaView>
+
+        {/* Glass border bottom */}
+        <View style={styles.headerBorder} />
+
+        {/* Logo row */}
+        <View style={styles.logoRow}>
+          <Animated.Text
+            style={[
+              styles.logoText,
+              {
+                transform: [
+                  { scale: logoScale },
+                  { translateY: logoTranslateY },
+                ],
+              },
+            ]}
+          >
+            Wall<Text style={styles.logoDim}>Zone</Text>
+          </Animated.Text>
+
+          {/* Mini search icon — visible when collapsed */}
+          <Animated.View style={[styles.miniActions, { opacity: miniSearchOpacity }]}>
+            <TouchableOpacity
+              style={styles.miniBtn}
+              onPress={() => {
+                listRef.current?.scrollToOffset({ offset: 0, animated: true });
+                setTimeout(() => searchInputRef.current?.focus(), 350);
+              }}
+              hitSlop={10}
+            >
+              <Ionicons name="search" size={17} color="rgba(255,255,255,0.75)" />
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+
+        {/* Expanded search bar */}
+        <Animated.View
+          style={[
+            styles.searchWrap,
+            {
+              opacity: searchOpacity,
+              transform: [{ translateY: searchTranslateY }],
+            },
+          ]}
+          pointerEvents={searchFocused || !query ? 'auto' : 'auto'}
+        >
+          <View
+            style={[
+              styles.searchBar,
+              searchFocused && styles.searchBarFocused,
+            ]}
+          >
+            <Ionicons
+              name="search"
+              size={15}
+              color={searchFocused ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.35)'}
+              style={{ marginRight: 8 }}
+            />
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder="Search wallpapers..."
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              value={query}
+              onChangeText={handleSearch}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={handleClearSearch} hitSlop={10}>
+                <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.45)" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
+      </Animated.View>
+
+      {/* ── Grid (full screen, inset for header) ── */}
+      <WallpaperGrid
+        ref={listRef}
+        wallpapers={wallpapers}
+        header={carousel}
+        onLoadMore={loadMore}
+        isLoadingMore={loadingMore}
+        isLoading={loading}
+        emptyMessage="No results found — try a different keyword"
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        scrollY={scrollY}
+        headerHeight={HEADER_EXPANDED_H + topInset}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    overflow: 'hidden',
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: 10,
+    justifyContent: 'flex-end',
+  },
+  headerBorder: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 0.5,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  logoText: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.8,
+    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
+  },
+  logoDim: {
+    color: 'rgba(255,255,255,0.32)',
+  },
+  miniActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  miniBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  searchWrap: {
+    // animated container
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    height: 40,
+  },
+  searchBarFocused: {
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  searchInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: FONT_SIZE.body,
+    fontWeight: FONT_WEIGHT.medium,
+    paddingVertical: 0,
+  },
 });
