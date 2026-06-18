@@ -9,11 +9,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { FlashList, FlashListRef } from '@shopify/flash-list';
+import { FlashList, FlashListRef, AnimatedFlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { FavoritesContext } from '@/context/FavoritesContext';
 import { useSettings } from '@/context/SettingsContext';
@@ -107,6 +108,9 @@ interface Props {
   emptyMessage?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  scrollY?: Animated.Value;
+  headerHeight?: number;
+  isLoading?: boolean;
 }
 
 const WallpaperGrid = forwardRef<FlashListRef<any>, Props>(({
@@ -117,6 +121,8 @@ const WallpaperGrid = forwardRef<FlashListRef<any>, Props>(({
   emptyMessage = 'No wallpapers found',
   onRefresh,
   isRefreshing = false,
+  scrollY,
+  headerHeight = 0,
 }, ref) => {
   const router = useRouter();
   const t = useTheme();
@@ -171,7 +177,7 @@ const WallpaperGrid = forwardRef<FlashListRef<any>, Props>(({
   );
 
   return (
-    <FlashList
+    <AnimatedFlashList
       ref={ref}
       data={wallpapers}
       // Pass the Set here so FlashList knows when to trigger re-renders
@@ -183,7 +189,11 @@ const WallpaperGrid = forwardRef<FlashListRef<any>, Props>(({
       renderItem={renderItem}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: SPACING.sm, paddingBottom: 130 }}
+      contentContainerStyle={{ 
+        paddingHorizontal: SPACING.sm, 
+        paddingBottom: 130,
+        paddingTop: headerHeight
+      }}
       ListHeaderComponent={header ?? undefined}
       ListEmptyComponent={wallpapers.length === 0 && !isLoadingMore ? <ListEmpty /> : null}
       ListFooterComponent={
@@ -195,6 +205,11 @@ const WallpaperGrid = forwardRef<FlashListRef<any>, Props>(({
       onEndReachedThreshold={0.6}
       refreshing={isRefreshing}
       onRefresh={onRefresh}
+      onScroll={scrollY ? Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        { useNativeDriver: false }
+      ) : undefined}
+      scrollEventThrottle={16}
     />
   );
 });
