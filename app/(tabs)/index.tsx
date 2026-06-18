@@ -151,18 +151,19 @@ export default function ExploreScreen() {
     />
   ) : null;
 
-  const showSpinner = loading && wallpapers.length === 0;
-
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
+      {/* Premium Header */}
       <LargeHeader
         title="WallZone"
-        searchPlaceholder="Search wallpapers…"
-        onSearch={handleSearch}
+        isLogo={true}
+        searchPlaceholder="Search wallpapers..."
         searchValue={query}
+        onSearch={setQuery}
+        onSearchSubmit={() => {}}
       />
 
-      {showSpinner ? (
+      {loading && wallpapers.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={t.accent} />
         </View>

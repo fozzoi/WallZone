@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { FavoritesContext } from '@/context/FavoritesContext';
+import { useSettings } from '@/context/SettingsContext';
 import { useTheme, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '@/constants/theme';
 import type { Wallpaper } from '@/services/api';
 
@@ -34,8 +35,15 @@ const WallpaperCard = React.memo(({
   onPress: (item: Wallpaper) => void; 
   onToggleFav: (item: Wallpaper) => void;
   cardColor: string;
+  quality: 'full' | 'thumb';
 }) => {
   const cardHeight = Math.max(200, Math.min(item.height ?? 260, 360));
+  
+  // Decide which image quality to load based on settings
+  const sourceUrl = quality === 'thumb' && item.previewUrl ? item.previewUrl : (item.url || item.previewUrl);
+  
+  // Use first tag as title, fallback to author
+  const titleText = item.tags && item.tags.length > 0 ? item.tags[0].name : (item.author || 'Wallpaper');
 
   return (
     <TouchableOpacity
@@ -44,7 +52,7 @@ const WallpaperCard = React.memo(({
       activeOpacity={0.88}
     >
       <Image
-        source={{ uri: item.previewUrl || item.url }}
+        source={{ uri: sourceUrl }}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         transition={250}
@@ -63,7 +71,7 @@ const WallpaperCard = React.memo(({
             BlurView is a massive performance killer in scrolling lists. */}
         <View style={styles.infoPill}>
           <Text style={styles.authorText} numberOfLines={1}>
-            {item.author || 'Wallhaven'}
+            {titleText}
           </Text>
           <Pressable
             onPress={() => onToggleFav(item)}
@@ -81,8 +89,11 @@ const WallpaperCard = React.memo(({
     </TouchableOpacity>
   );
 }, (prevProps, nextProps) => {
-  // Only re-render if the ID or the Favorite status changes
-  return prevProps.item.id === nextProps.item.id && prevProps.isFav === nextProps.isFav;
+  return (
+    prevProps.item.id === nextProps.item.id && 
+    prevProps.isFav === nextProps.isFav &&
+    prevProps.quality === nextProps.quality
+  );
 });
 
 // ─── Main Grid Component ──────────────────────────────────────────────────────
@@ -109,6 +120,7 @@ const WallpaperGrid = forwardRef<FlashList<any>, Props>(({
   const router = useRouter();
   const t = useTheme();
   const { toggleFavorite, favorites } = useContext(FavoritesContext);
+  const settings = useSettings();
 
   // OPTIMIZATION 3: Convert favorites array to a Set.
   // This changes the lookup time from O(N) to O(1), saving thousands of operations during fast scrolls.
@@ -145,9 +157,10 @@ const WallpaperGrid = forwardRef<FlashList<any>, Props>(({
         onPress={handlePress}
         onToggleFav={toggleFavorite}
         cardColor={t.card}
+        quality={settings.imageQuality}
       />
     );
-  }, [favoriteIds, handlePress, toggleFavorite, t.card]);
+  }, [favoriteIds, handlePress, toggleFavorite, t.card, settings.imageQuality]);
 
   const ListEmpty = () => (
     <View style={styles.empty}>

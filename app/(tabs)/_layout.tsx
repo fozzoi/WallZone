@@ -9,9 +9,9 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─── Responsive Measurements (Slightly larger, lifted higher) ─────────────
 const IS_SMALL_SCREEN = SCREEN_WIDTH < 380;
-const TAB_BAR_HEIGHT = IS_SMALL_SCREEN ? 54 : 62; // Increased size slightly
-const BASE_ICON_SIZE = IS_SMALL_SCREEN ? 20 : 24; // Increased icon size
-const DOCK_MARGIN_BOTTOM = Platform.OS === 'ios' ? 34 : 28; // Lifted higher, especially for Android
+const TAB_BAR_HEIGHT = IS_SMALL_SCREEN ? 60 : 66; // Taller for labels
+const BASE_ICON_SIZE = IS_SMALL_SCREEN ? 20 : 22; // Scaled for 4 tabs
+const DOCK_MARGIN_BOTTOM = Platform.OS === 'ios' ? 34 : 28;
 
 // ─── Animated Icon Wrapper (Smooth Zoom In/Out) ────────────────────────────
 const AnimatedTabIcon = ({ isFocused, children }: { isFocused: boolean; children: React.ReactNode }) => {
@@ -88,6 +88,8 @@ function CustomTabBar({ state, descriptors, navigation, isDark }: any) {
                 })
               : null;
 
+            const labelText = options.title || route.name;
+
             return (
               <TouchableOpacity
                 key={route.key}
@@ -100,6 +102,14 @@ function CustomTabBar({ state, descriptors, navigation, isDark }: any) {
                 <AnimatedTabIcon isFocused={isFocused}>
                   {iconComponent}
                 </AnimatedTabIcon>
+                <Animated.Text
+                  style={[
+                    styles.tabLabel,
+                    { color: isFocused ? pillicon : inactiveIconColor, fontWeight: isFocused ? '600' : '500' }
+                  ]}
+                >
+                  {labelText}
+                </Animated.Text>
               </TouchableOpacity>
             );
           })}
@@ -124,6 +134,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: 'Explore',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'compass' : 'compass-outline'} size={BASE_ICON_SIZE} color={color} />
           ),
@@ -132,6 +143,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="categories"
         options={{
+          title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'grid' : 'grid-outline'} size={BASE_ICON_SIZE - 2} color={color} />
           ),
@@ -140,8 +152,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="favorites"
         options={{
+          title: 'Saved',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'heart' : 'heart-outline'} size={BASE_ICON_SIZE - 1} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'settings' : 'settings-outline'} size={BASE_ICON_SIZE - 1} color={color} />
           ),
         }}
       />
@@ -166,10 +188,11 @@ const styles = StyleSheet.create({
     height: 140, // Increased to cover the higher lift from the bottom
   },
   pillContainer: {
-    width: Math.min(SCREEN_WIDTH - 60, 310), // Slightly wider to accommodate larger icons
+    width: Math.min(SCREEN_WIDTH - 32, 360), // Wider for 4 tabs + labels
     height: TAB_BAR_HEIGHT,
     marginBottom: DOCK_MARGIN_BOTTOM,
-    borderRadius: TAB_BAR_HEIGHT / 2, 
+    borderRadius: RADIUS ? RADIUS.xl : TAB_BAR_HEIGHT / 2, // Use theme radius if available
+
     overflow: 'hidden',
     borderWidth: 1,
     shadowOffset: { width: 0, height: 8 },
@@ -189,5 +212,10 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 4,
+  },
+  tabLabel: {
+    fontSize: 10,
+    marginTop: 4,
   },
 });

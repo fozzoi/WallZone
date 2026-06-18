@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { LargeHeader } from '@/components/ui/PageHeader';
 import WallpaperGrid from '@/components/explore/WallpaperGrid';
 import { FavoritesContext } from '@/context/FavoritesContext';
 import { useTheme, SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '@/constants/theme';
@@ -19,15 +20,10 @@ export default function FavoritesScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: t.bg }]}>
-        <View>
-          <Text style={[styles.title, { color: t.text }]}>Collection</Text>
-          <Text style={[styles.subtitle, { color: t.textSub }]}>
-            {count > 0 ? `${count} wallpaper${count !== 1 ? 's' : ''} saved` : 'Your saved wallpapers'}
-          </Text>
-        </View>
-      </View>
+      <LargeHeader
+        title="Collection"
+        subtitle={count > 0 ? `${count} wallpaper${count !== 1 ? 's' : ''} saved` : 'Your saved wallpapers'}
+      />
 
       {/* Content */}
       {count === 0 ? (
@@ -71,22 +67,6 @@ function EmptyState({ onExplore, t }: { onExplore: () => void; t: any }) {
 // ... Keep your existing styles at the bottom ...
 const styles = StyleSheet.create({
   root: { flex: 1 },
-
-  header: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
-  },
-  title: {
-    fontSize: FONT_SIZE.title,
-    fontWeight: FONT_WEIGHT.extrabold,
-    letterSpacing: -0.8,
-  },
-  subtitle: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: FONT_WEIGHT.medium,
-    marginTop: 3,
-  },
 
   empty: {
     flex: 1,

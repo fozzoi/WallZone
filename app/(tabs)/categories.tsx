@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, Dimensions, Platform,
-  RefreshControl, AppState, AppStateStatus,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -29,7 +29,6 @@ export default function CategoriesScreen() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const appStateRef = useRef(AppState.currentState);
 
   const loadCats = useCallback(async (options: { refresh?: boolean; silent?: boolean } = {}) => {
     const { refresh = false, silent = false } = options;
@@ -54,18 +53,6 @@ export default function CategoriesScreen() {
 
   useEffect(() => {
     loadCats({ refresh: true });
-  }, [loadCats]);
-
-  useEffect(() => {
-    const onAppStateChange = (nextState: AppStateStatus) => {
-      const wasBackground = appStateRef.current.match(/inactive|background/);
-      if (wasBackground && nextState === 'active') {
-        loadCats({ refresh: true, silent: true });
-      }
-      appStateRef.current = nextState;
-    };
-    const sub = AppState.addEventListener('change', onAppStateChange);
-    return () => sub.remove();
   }, [loadCats]);
 
   const handleRefresh = async () => {
@@ -93,7 +80,7 @@ export default function CategoriesScreen() {
         <Image
           source={{ uri: item.cover }}
           style={StyleSheet.absoluteFill}
-          contentFit={tall ? 'cover' : 'fill'}
+          contentFit="cover"
           contentPosition="center"
           transition={350}
           recyclingKey={item.id}
@@ -101,7 +88,8 @@ export default function CategoriesScreen() {
         />
       ) : null}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.72)']}
+        colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']}
+        locations={[0, 0.4, 1]}
         style={styles.gradient}
       />
       <View style={styles.labelWrapper}>

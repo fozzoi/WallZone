@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, SPACING, FONT_SIZE, FONT_WEIGHT, RADIUS } from '@/constants/theme';
 
 // ─── Large header (tabs) ──────────────────────────────────────────────────────
@@ -27,6 +28,7 @@ interface LargeHeaderProps {
   onSearch?: (text: string) => void;
   onSearchSubmit?: () => void;
   searchValue?: string;
+  isLogo?: boolean;
 }
 
 export function LargeHeader({
@@ -36,16 +38,34 @@ export function LargeHeader({
   onSearch,
   onSearchSubmit,
   searchValue,
+  isLogo = false,
 }: LargeHeaderProps) {
   const t = useTheme();
 
   return (
     <View style={[styles.largeContainer, { backgroundColor: t.bg }]}>
       <View style={styles.titleRow}>
-        <Text style={[styles.largeTitle, { color: t.text }]}>{title}</Text>
-        {subtitle ? (
-          <Text style={[styles.subtitle, { color: t.textSub }]}>{subtitle}</Text>
-        ) : null}
+        <View>
+          <Text style={[styles.largeTitle, { color: t.text }]}>{title}</Text>
+          {isLogo && (
+            <LinearGradient
+              colors={[t.accent, '#A69BFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.logoUnderline}
+            />
+          )}
+          {subtitle ? (
+            <Text style={[styles.subtitle, { color: t.textSub }]}>{subtitle}</Text>
+          ) : null}
+        </View>
+        
+        {isLogo && (
+          <TouchableOpacity style={[styles.bellBtn, { backgroundColor: t.pillBg }]}>
+            <Ionicons name="notifications-outline" size={20} color={t.text} />
+            <View style={[styles.bellDot, { backgroundColor: t.heart }]} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {onSearch ? (
@@ -131,25 +151,53 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: SPACING.md,
   },
   largeTitle: {
-    fontSize: FONT_SIZE.title,
-    fontWeight: FONT_WEIGHT.extrabold,
-    letterSpacing: -0.8,
+    fontSize: FONT_SIZE.title + 2,
+    fontWeight: FONT_WEIGHT.black,
+    letterSpacing: -1.2,
+  },
+  logoUnderline: {
+    height: 4,
+    width: 32,
+    borderRadius: 2,
+    marginTop: 4,
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.body,
     fontWeight: FONT_WEIGHT.medium,
-    marginTop: 3,
+    marginTop: 4,
+    letterSpacing: 0.2,
+  },
+  bellBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellDot: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#000', // Will blend into dark mode bg, maybe tweak later
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    height: 48,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.md + 4,
+    height: 50,
+    borderWidth: 1,
   },
   searchIcon: {
     marginRight: SPACING.sm,

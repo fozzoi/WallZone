@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { FavoritesProvider } from '@/context/FavoritesContext';
+import { SettingsProvider } from '@/context/SettingsContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 SplashScreen.preventAutoHideAsync();
@@ -22,14 +23,15 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <FavoritesProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {/* Added screenOptions to hide the native header on all pages */}
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </FavoritesProvider>
+    <SettingsProvider>
+      <FavoritesProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </FavoritesProvider>
+    </SettingsProvider>
   );
 }
