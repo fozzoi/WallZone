@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import WallpaperCarousel from '@/components/explore/WallpaperCarousel';
+import { FlashListRef } from '@shopify/flash-list';
 import WallpaperGrid from '@/components/explore/WallpaperGrid';
 import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING, useTheme } from '@/constants/theme';
 import type { Wallpaper } from '@/services/api';
@@ -26,10 +27,10 @@ import { contentCache } from '@/services/cache';
 const { width: W } = Dimensions.get('window');
 
 // ─── Collapse thresholds ───────────────────────────────────────────────────────
-const HEADER_EXPANDED_H = 110; // logo + search row
-const HEADER_COLLAPSED_H = 54;
-const COLLAPSE_START = 10;
-const COLLAPSE_END = 80;
+const HEADER_EXPANDED_H = 96; // logo (35) + margin (8) + search (40) + bottom padding (13)
+const HEADER_COLLAPSED_H = 56; // search (40) + vertical padding (16)
+const COLLAPSE_START = 0;
+const COLLAPSE_END = 50;
 
 export default function ExploreScreen() {
   const t = useTheme();
@@ -48,7 +49,7 @@ export default function ExploreScreen() {
   const [searchFocused, setSearchFocused] = useState(false);
 
   const isFetchingRef = useRef(false);
-  const listRef = useRef<FlashList<any>>(null);
+  const listRef = useRef<FlashListRef<any>>(null);
   const hasLoadedOnce = useRef(false);
   const searchInputRef = useRef<TextInput>(null);
 
@@ -61,33 +62,21 @@ export default function ExploreScreen() {
     extrapolate: 'clamp',
   });
 
-  const logoScale = scrollY.interpolate({
-    inputRange: [COLLAPSE_START, COLLAPSE_END],
-    outputRange: [1, 0.72],
+  const logoOpacity = scrollY.interpolate({
+    inputRange: [COLLAPSE_START, COLLAPSE_END * 0.8],
+    outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
   const logoTranslateY = scrollY.interpolate({
     inputRange: [COLLAPSE_START, COLLAPSE_END],
-    outputRange: [0, -4],
-    extrapolate: 'clamp',
-  });
-
-  const searchOpacity = scrollY.interpolate({
-    inputRange: [COLLAPSE_START, COLLAPSE_END * 0.6],
-    outputRange: [1, 0],
+    outputRange: [0, -40],
     extrapolate: 'clamp',
   });
 
   const searchTranslateY = scrollY.interpolate({
     inputRange: [COLLAPSE_START, COLLAPSE_END],
-    outputRange: [0, -8],
-    extrapolate: 'clamp',
-  });
-
-  const miniSearchOpacity = scrollY.interpolate({
-    inputRange: [COLLAPSE_END * 0.7, COLLAPSE_END],
-    outputRange: [0, 1],
+    outputRange: [0, -43],
     extrapolate: 'clamp',
   });
 
@@ -218,7 +207,7 @@ export default function ExploreScreen() {
       <Animated.View
         style={[
           styles.header,
-          { paddingTop: topInset + 6, height: totalHeaderH },
+          { paddingTop: topInset, height: totalHeaderH },
         ]}
         pointerEvents="box-none"
       >
@@ -233,46 +222,29 @@ export default function ExploreScreen() {
         <View style={styles.headerBorder} />
 
         {/* Logo row */}
-        <View style={styles.logoRow}>
-          <Animated.Text
-            style={[
-              styles.logoText,
-              {
-                transform: [
-                  { scale: logoScale },
-                  { translateY: logoTranslateY },
-                ],
-              },
-            ]}
-          >
+        <Animated.View 
+          style={[
+            styles.logoRow,
+            {
+              opacity: logoOpacity,
+              transform: [{ translateY: logoTranslateY }],
+            }
+          ]}
+        >
+          <Text style={styles.logoText}>
             Wall<Text style={styles.logoDim}>Zone</Text>
-          </Animated.Text>
+          </Text>
+        </Animated.View>
 
-          {/* Mini search icon — visible when collapsed */}
-          <Animated.View style={[styles.miniActions, { opacity: miniSearchOpacity }]}>
-            <TouchableOpacity
-              style={styles.miniBtn}
-              onPress={() => {
-                listRef.current?.scrollToOffset({ offset: 0, animated: true });
-                setTimeout(() => searchInputRef.current?.focus(), 350);
-              }}
-              hitSlop={10}
-            >
-              <Ionicons name="search" size={17} color="rgba(255,255,255,0.75)" />
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-
-        {/* Expanded search bar */}
+        {/* Floating search bar */}
         <Animated.View
           style={[
             styles.searchWrap,
             {
-              opacity: searchOpacity,
               transform: [{ translateY: searchTranslateY }],
             },
           ]}
-          pointerEvents={searchFocused || !query ? 'auto' : 'auto'}
+          pointerEvents="auto"
         >
           <View
             style={[
