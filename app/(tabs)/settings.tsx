@@ -11,7 +11,6 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -64,10 +63,13 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
-      <LargeHeader title="Settings" subtitle="Customize your experience" />
-
+    <View style={[styles.root, { backgroundColor: t.bg }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <LargeHeader
+          title="Settings"
+          subtitle="Customize your experience"
+          style={{ marginHorizontal: -SPACING.md, marginBottom: SPACING.sm }}
+        />
         
         {/* ─── APPEARANCE ─── */}
         <SectionTitle title="Appearance" t={t} />
@@ -179,7 +181,7 @@ export default function SettingsScreen() {
           />
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

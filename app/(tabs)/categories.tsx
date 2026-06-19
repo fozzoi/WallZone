@@ -6,7 +6,6 @@ import {
   StyleSheet, ActivityIndicator, Dimensions, Platform,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -105,28 +104,29 @@ export default function CategoriesScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
-      <LargeHeader
-        title="Discover"
-        subtitle={`${categories.length} categories`}
-      />
+    <View style={[styles.root, { backgroundColor: t.bg }]}>
+      <ScrollView
+        contentContainerStyle={styles.grid}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={t.accent}
+          />
+        }
+      >
+        <LargeHeader
+          title="Discover"
+          subtitle={`${categories.length} categories`}
+          style={{ marginHorizontal: -SPACING.md, marginBottom: SPACING.md }}
+        />
 
-      {loading && categories.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="small" color={t.accent} />
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.grid}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={handleRefresh}
-              tintColor={t.accent}
-            />
-          }
-        >
+        {loading && categories.length === 0 ? (
+          <View style={styles.centerSpinner}>
+            <ActivityIndicator size="small" color={t.accent} />
+          </View>
+        ) : (
           <View style={styles.columns}>
             <View style={styles.col}>
               {left.map((item, i) => renderCard(item, i % 2 === 0))}
@@ -135,15 +135,20 @@ export default function CategoriesScreen() {
               {right.map((item, i) => renderCard(item, i % 2 !== 0))}
             </View>
           </View>
-        </ScrollView>
-      )}
-    </SafeAreaView>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root:   { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centerSpinner: {
+    paddingVertical: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   grid: {
     paddingHorizontal: SPACING.md,
     paddingBottom: 130,

@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions, Platform, useColorScheme, Animated, Easing } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Dimensions, Platform, Animated, Easing } from 'react-native';
+import { useTheme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -122,8 +123,8 @@ function CustomTabBar({ state, descriptors, navigation, isDark }: any) {
 
 // ─── Main Layout ────────────────────────────────────────────────────────────
 export default function TabLayout() {
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
+  const t = useTheme();
+  const isDark = t.isDark;
 
   return (
     <Tabs

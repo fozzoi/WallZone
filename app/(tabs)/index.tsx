@@ -1,36 +1,26 @@
 // app/(tabs)/index.tsx
 
-import { Ionicons } from '@expo/vector-icons';
-
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
-  Platform,
   StyleSheet,
-  Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import WallpaperCarousel from '@/components/explore/WallpaperCarousel';
+import { FloatingHeader, HEADER_EXPANDED_H } from '@/components/ui/PageHeader';
 import { FlashListRef } from '@shopify/flash-list';
 import WallpaperGrid from '@/components/explore/WallpaperGrid';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING, useTheme } from '@/constants/theme';
+import { useTheme } from '@/constants/theme';
 import type { Wallpaper } from '@/services/api';
 import { fetchExplore, fetchSearch, fetchTrending } from '@/services/api';
 import { contentCache } from '@/services/cache';
 
 const { width: W } = Dimensions.get('window');
-
-// ─── Collapse thresholds ───────────────────────────────────────────────────────
-const HEADER_EXPANDED_H = 106; // logo (32) + margin top (12) + margin bottom (10) + search (40) + bottom padding (12)
-const HEADER_COLLAPSED_H = 64;  // search (40) + vertical padding (24)
-const COLLAPSE_START = 0;
-const COLLAPSE_END = 50;
 
 export default function ExploreScreen() {
   const t = useTheme();
@@ -46,7 +36,6 @@ export default function ExploreScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [searchFocused, setSearchFocused] = useState(false);
 
   const isFetchingRef = useRef(false);
   const listRef = useRef<FlashListRef<any>>(null);
@@ -55,30 +44,6 @@ export default function ExploreScreen() {
 
   // ─── Scroll-driven header animation ─────────────────────────────────────────
   const scrollY = useRef(new Animated.Value(0)).current;
-
-  const headerHeight = scrollY.interpolate({
-    inputRange: [COLLAPSE_START, COLLAPSE_END],
-    outputRange: [HEADER_EXPANDED_H, HEADER_COLLAPSED_H],
-    extrapolate: 'clamp',
-  });
-
-  const logoOpacity = scrollY.interpolate({
-    inputRange: [COLLAPSE_START, COLLAPSE_END * 0.8],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
-
-  const logoTranslateY = scrollY.interpolate({
-    inputRange: [COLLAPSE_START, COLLAPSE_END],
-    outputRange: [0, -40],
-    extrapolate: 'clamp',
-  });
-
-  const searchTranslateY = scrollY.interpolate({
-    inputRange: [COLLAPSE_START, COLLAPSE_END],
-    outputRange: [0, -42],
-    extrapolate: 'clamp',
-  });
 
   // ─── scroll-to-top from tab press ────────────────────────────────────────────
   useEffect(() => {
@@ -190,7 +155,6 @@ export default function ExploreScreen() {
 
   // ─── Header total height = animated area + safe area top ─────────────────────
   const topInset = insets.top;
-  const totalHeaderH = Animated.add(headerHeight, new Animated.Value(topInset));
 
   const carousel = !query.trim() && trending.length > 0 ? (
     <WallpaperCarousel
@@ -204,77 +168,19 @@ export default function ExploreScreen() {
     <View style={[styles.root, { backgroundColor: t.bg }]}>
 
       {/* ── Floating Header ── */}
-      <Animated.View
-        style={[
-          styles.header,
-          { paddingTop: topInset, height: totalHeaderH },
-        ]}
-        pointerEvents="box-none"
-      >
-        {/* Header background fallback */}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(16, 16, 16, 1)' }]} />
-
-        {/* Glass border bottom */}
-        <View style={styles.headerBorder} />
-
-        {/* Logo row */}
-        <Animated.View 
-          style={[
-            styles.logoRow,
-            {
-              opacity: logoOpacity,
-              transform: [{ translateY: logoTranslateY }],
-            }
-          ]}
-        >
-          <Text style={styles.logoText}>
-            Wall<Text style={styles.logoDim}>Zone</Text>
-          </Text>
-        </Animated.View>
-
-        {/* Floating search bar */}
-        <Animated.View
-          style={[
-            styles.searchWrap,
-            {
-              transform: [{ translateY: searchTranslateY }],
-            },
-          ]}
-          pointerEvents="auto"
-        >
-          <View
-            style={[
-              styles.searchBar,
-              searchFocused && styles.searchBarFocused,
-            ]}
-          >
-            <Ionicons
-              name="search"
-              size={15}
-              color={searchFocused ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.35)'}
-              style={{ marginRight: 8 }}
-            />
-            <TextInput
-              ref={searchInputRef}
-              style={styles.searchInput}
-              placeholder="Search wallpapers..."
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              value={query}
-              onChangeText={handleSearch}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              returnKeyType="search"
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={handleClearSearch} hitSlop={10}>
-                <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.45)" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </Animated.View>
-      </Animated.View>
+      <FloatingHeader
+        title="Wall"
+        titleSuffix="Zone"
+        isLogo
+        scrollY={scrollY}
+        search={{
+          placeholder: 'Search wallpapers...',
+          value: query,
+          onChangeText: handleSearch,
+          onClear: handleClearSearch,
+          inputRef: searchInputRef,
+        }}
+      />
 
       {/* ── Grid (full screen, inset for header) ── */}
       <WallpaperGrid
@@ -296,79 +202,4 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    overflow: 'hidden',
-    paddingHorizontal: SPACING.lg,
-  },
-  headerBorder: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0)',
-  },
-
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 5,
-    marginBottom: 10,
-  },
-  logoText: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.8,
-    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
-  },
-  logoDim: {
-    color: 'rgba(255,255,255,0.32)',
-  },
-  miniActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  miniBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  searchWrap: {
-    // animated container
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 0.8,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 12,
-    height: 44,
-  },
-  searchBarFocused: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
-  searchInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: FONT_SIZE.body,
-    fontWeight: FONT_WEIGHT.medium,
-    paddingVertical: 0,
-  },
 });

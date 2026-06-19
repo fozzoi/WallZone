@@ -14,9 +14,20 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+function RootContent() {
   const colorScheme = useColorScheme();
 
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    </>
+  );
+}
+
+export default function RootLayout() {
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
@@ -24,10 +35,7 @@ export default function RootLayout() {
   return (
     <SettingsProvider>
       <FavoritesProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-          <StatusBar style="auto" />
+        <RootContent />
       </FavoritesProvider>
     </SettingsProvider>
   );

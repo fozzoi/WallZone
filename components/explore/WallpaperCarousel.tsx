@@ -240,10 +240,10 @@ const styles = StyleSheet.create({
   },
   gradient: {
     position: 'absolute',
-    bottom: 0,
+    bottom: -1,
     left: 0,
     right: 0,
-    height: '55%',
+    height: '35%',
   },
   glassWrapper: {
     position: 'absolute',

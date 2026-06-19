@@ -2,7 +2,6 @@
 
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -19,27 +18,32 @@ export default function FavoritesScreen() {
   const count = favorites?.length ?? 0;
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: t.bg }]} edges={['top']}>
-      <LargeHeader
-        title="Collection"
-        subtitle={count > 0 ? `${count} wallpaper${count !== 1 ? 's' : ''} saved` : 'Your saved wallpapers'}
-      />
-
-      {/* Content */}
+    <View style={[styles.root, { backgroundColor: t.bg }]}>
       {count === 0 ? (
-        <EmptyState 
-          // FIX: Pass a timestamp parameter to force the home screen to react and scroll
-          onExplore={() => router.push({ pathname: '/', params: { scrollToTop: Date.now() } })} 
-          t={t} 
-        />
+        <>
+          <LargeHeader
+            title="Collection"
+            subtitle="Your saved wallpapers"
+          />
+          <EmptyState 
+            onExplore={() => router.push({ pathname: '/', params: { scrollToTop: Date.now() } })} 
+            t={t} 
+          />
+        </>
       ) : (
         <WallpaperGrid
           wallpapers={favorites}
-          header={null}
+          header={
+            <LargeHeader
+              title="Collection"
+              subtitle={`${count} wallpaper${count !== 1 ? 's' : ''} saved`}
+              style={{ marginHorizontal: -SPACING.sm, marginBottom: SPACING.sm }}
+            />
+          }
           emptyMessage="Nothing saved yet"
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
