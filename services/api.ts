@@ -42,6 +42,9 @@ async function get(
     return acc;
   }, {} as Record<string, string>);
 
+  // Automatically request landscape orientation for the desktop app
+  entries.orientation = 'landscape';
+
   if (options?.refresh) {
     entries.refresh = '1';
     entries._t = String(Date.now());
