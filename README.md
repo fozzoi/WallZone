@@ -1,50 +1,78 @@
-# Welcome to your Expo app 👋
+# WallZone Desktop Client 🌌
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+WallZone is a premium desktop wallpaper application built with **Next.js App Router**, **TypeScript**, and **Tailwind CSS/Vanilla CSS**, packaged as a native Windows desktop application using **Electron**. It interfaces with a custom wallpapers API backend to browse, search, and download high-resolution landscape wallpapers.
 
-## Get started
+---
 
-1. Install dependencies
+## ✨ Features
 
-   ```bash
-   npm install
-   ```
+- **Glassmorphic Topbar & Global Search**: A sleek, horizontal top bar featuring a centered search box with smooth focus animations (expands from `280px` to `340px`) and debounced search parameter synchronization.
+- **Dynamic Landscape Filtering**: Configured to query only high-resolution landscape wallpapers (width > height) for desktop displays, keeping layout integrity pristine.
+- **Responsive Explore Carousel**: A large 16:9 featured wallpaper carousel with animated slide indicator dots that transition width and opacity on scroll or click.
+- **Persistent Metadata & Interactive Hover States**: Wallpaper titles and uploaders are permanently visible on cards. Cards lift (`translateY(-4px)`), images zoom, and glass wrappers shift on hover.
+- **Locked Visual Zoom**: The application blocks user zoom (e.g. `Ctrl` + mouse wheel, `Ctrl +/-`) to ensure the design remains visually consistent and pixel-perfect.
+- **Fast Static Site Generation (SSG)**: Built using Next.js static exports (`out/`) and loaded via a custom privileged protocol (`app://`) in Electron for native-speed rendering.
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 🛠️ Tech Stack
 
-In the output, you'll find options to open the app in a
+- **Frontend Framework**: Next.js 14+ (App Router, Static Export)
+- **Desktop Runtime**: Electron 30+
+- **Styling**: Vanilla CSS (Global variables, glassmorphism, animations)
+- **Language**: TypeScript
+- **Bundler/Packager**: `electron-builder`
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🚀 Get Started
 
-## Get a fresh project
+### Prerequisites
 
-When you're ready, run:
+Make sure you have [Node.js](https://nodejs.org) installed.
+
+### 1. Install Dependencies
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Run in Development Mode
 
-## Learn more
+To start the Next.js development server and open the Electron window simultaneously:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm run dev
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 3. Build & Package (Windows Installer)
 
-## Join the community
+To compile the static Next.js pages and generate a production-ready `.exe` installer (NSIS-based):
 
-Join our community of developers creating universal apps.
+```bash
+# Compile Next.js to static out/ folder
+npm run build
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# Package using electron-builder
+npm run dist
+```
+
+The compiled installer will be available at:
+`dist/WallZone Setup 1.0.0.exe` (or `WallZone Setup 1.0.0 x86 .exe` depending on architecture settings).
+
+---
+
+## 📂 Project Structure
+
+- `/app` — Next.js pages, routing, layouts, and global styling.
+- `/components` — Reusable React UI elements (Topbar, Grid, Carousel, etc.).
+- `/electron` — Electron main process (`main.js`) and preload script (`preload.js`).
+- `/public` — Static assets (logo icons, local images).
+- `/services` — API connection client and caching middleware.
+- `/scripts` — Utility scripts for release packaging.
+
+---
+
+## 🔒 License
+
+This project is licensed under the MIT License.
