@@ -3,7 +3,7 @@ name: 'Tauri Build'
 on:
   push:
     branches:
-      - main
+      - windows-version
   workflow_dispatch:
 
 jobs:
