@@ -3,6 +3,11 @@ import './globals.css';
 import Topbar from '@/components/Topbar';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { FavoritesProvider } from '@/context/FavoritesContext';
+import { ExploreProvider } from '@/context/ExploreContext';
+import { Inter } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata = {
   title: 'WallZone',
@@ -15,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={cn("font-sans", inter.variable)}>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -40,12 +45,14 @@ export default function RootLayout({
       <body>
         <SettingsProvider>
           <FavoritesProvider>
-            <div style={styles.appContainer}>
-              <Topbar />
-              <main style={styles.mainContent}>
-                {children}
-              </main>
-            </div>
+            <ExploreProvider>
+              <div style={styles.appContainer}>
+                <Topbar />
+                <main style={styles.mainContent}>
+                  {children}
+                </main>
+              </div>
+            </ExploreProvider>
           </FavoritesProvider>
         </SettingsProvider>
       </body>

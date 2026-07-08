@@ -4,10 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { fetchCategories } from '@/services/api';
 import { contentCache } from '@/services/cache';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 export default function DiscoverPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const scrollRef = useScrollRestoration('discover');
 
   const loadCats = useCallback(async (options: { refresh?: boolean; silent?: boolean } = {}) => {
     const { refresh = false, silent = false } = options;
@@ -43,7 +45,7 @@ export default function DiscoverPage() {
 
   return (
     <div style={styles.container} className="fade-in">
-      <div style={styles.scrollArea}>
+      <div ref={scrollRef as React.RefObject<HTMLDivElement>} style={styles.scrollArea}>
         {/* Clean Inline Header */}
         <div style={styles.pageHeader}>
           <h2 style={styles.pageTitle}>Discover Categories</h2>

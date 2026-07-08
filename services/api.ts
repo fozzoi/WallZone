@@ -144,3 +144,18 @@ export async function trackDownload(downloadLocationUrl?: string): Promise<void>
     console.error('[trackDownload]', err);
   }
 }
+
+/**
+ * Detailed Wallpaper info by ID
+ */
+export async function fetchWallpaperDetail(id: string): Promise<any> {
+  if (!id) return null;
+  try {
+    const data = await get({ type: 'detail', id });
+    return data;
+  } catch (err) {
+    console.error('[fetchWallpaperDetail]', err);
+    return null;
+  }
+}
+

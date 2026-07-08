@@ -6,6 +6,7 @@ import WallpaperGrid from '@/components/WallpaperGrid';
 import WallpaperCarousel from '@/components/WallpaperCarousel';
 import { fetchExplore, fetchSearch, fetchTrending } from '@/services/api';
 import { contentCache } from '@/services/cache';
+import { useExplore } from '@/context/ExploreContext';
 import type { Wallpaper } from '@/services/api';
 
 function ExploreContent() {
@@ -13,14 +14,59 @@ function ExploreContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
 
-  const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
-  const [trending, setTrending] = useState<Wallpaper[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const {
+    wallpapers: cachedWallpapers,
+    trending: cachedTrending,
+    page: cachedPage,
+    hasMore: cachedHasMore,
+    scrollPosition,
+    searchQuery: cachedQuery,
+    setExploreData,
+    setScrollPosition,
+    setSearchQuery,
+  } = useExplore();
+
+  const [wallpapers, setWallpapers] = useState<Wallpaper[]>(() => {
+    return query === cachedQuery ? cachedWallpapers : [];
+  });
+  const [trending, setTrending] = useState<Wallpaper[]>(() => {
+    return query === cachedQuery ? cachedTrending : [];
+  });
+  const [page, setPage] = useState(() => {
+    return query === cachedQuery ? cachedPage : 1;
+  });
+  const [loading, setLoading] = useState(() => {
+    return query === cachedQuery ? cachedWallpapers.length === 0 : true;
+  });
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(() => {
+    return query === cachedQuery ? cachedHasMore : true;
+  });
 
   const isFetchingRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Sync local changes to ExploreContext
+  useEffect(() => {
+    setExploreData({ wallpapers, trending, page, hasMore });
+    setSearchQuery(query);
+  }, [wallpapers, trending, page, hasMore, query, setExploreData, setSearchQuery]);
+
+  // Restore scroll height on mount/cache load
+  useEffect(() => {
+    if (scrollRef.current && query === cachedQuery && scrollPosition > 0) {
+      const timer = setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollPosition;
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [scrollPosition, query, cachedQuery]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollPosition(e.currentTarget.scrollTop);
+  };
 
   const applyFeed = useCallback((grid: Wallpaper[], carousel: Wallpaper[]) => {
     setWallpapers(grid);
@@ -31,6 +77,16 @@ function ExploreContent() {
 
   const loadInitial = useCallback(async (options: { silent?: boolean } = {}) => {
     const { silent = false } = options;
+
+    if (wallpapers.length > 0) {
+      setLoading(false);
+      return;
+    }
+
+    if (query === cachedQuery && cachedWallpapers.length > 0) {
+      setLoading(false);
+      return;
+    }
 
     if (!silent) {
       const cached = await contentCache.getExplore();
@@ -55,13 +111,22 @@ function ExploreContent() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [applyFeed]);
+  }, [applyFeed, query, cachedQuery, cachedWallpapers]);
 
   // Sync with search queries in URL
   useEffect(() => {
     if (!query.trim()) {
-      setHasMore(true);
-      loadInitial();
+      if (wallpapers.length === 0) {
+        setHasMore(true);
+        loadInitial();
+      } else {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (query === cachedQuery && cachedWallpapers.length > 0) {
+      setLoading(false);
       return;
     }
 
@@ -81,7 +146,7 @@ function ExploreContent() {
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [query, loadInitial]);
+  }, [query, loadInitial, cachedQuery, cachedWallpapers]);
 
   const loadMore = useCallback(async () => {
     if (isFetchingRef.current || !hasMore) return;
@@ -123,7 +188,7 @@ function ExploreContent() {
 
   return (
     <div style={styles.container} className="fade-in">
-      <div style={styles.scrollArea}>
+      <div ref={scrollRef} onScroll={handleScroll} style={styles.scrollArea}>
         {loading ? (
           <div style={styles.centerSpinner}>
             <div className="spinner" />

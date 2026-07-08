@@ -3,9 +3,11 @@
 import React from 'react';
 import { useSettings, ThemeMode, WallTarget, ImageQuality } from '@/context/SettingsContext';
 import { Settings, Shield, Image as ImageIcon, Smartphone, Trash2, Info, Server } from 'lucide-react';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 export default function SettingsPage() {
   const settings = useSettings();
+  const scrollRef = useScrollRestoration('settings');
 
   const handleThemeChange = (val: ThemeMode) => {
     settings.setSetting('theme', val);
@@ -23,6 +25,14 @@ export default function SettingsPage() {
     settings.setSetting('safeMode', val);
   };
 
+  const toggleRunInBackground = (val: boolean) => {
+    settings.setSetting('runInBackground', val);
+  };
+
+  const toggleStartOnBoot = (val: boolean) => {
+    settings.setSetting('startOnBoot', val);
+  };
+
   const handleClearCache = () => {
     if (confirm('Clear Cache? This will free up storage space but may cause images to load slower next time.')) {
       settings.clearCache();
@@ -31,7 +41,7 @@ export default function SettingsPage() {
 
   return (
     <div style={styles.container} className="fade-in">
-      <div style={styles.scrollArea}>
+      <div ref={scrollRef as React.RefObject<HTMLDivElement>} style={styles.scrollArea}>
         <div style={styles.contentWrap}>
           {/* Clean Inline Header */}
           <div style={styles.pageHeader}>
@@ -111,6 +121,38 @@ export default function SettingsPage() {
             />
           </div>
 
+          {/* System Section */}
+          <SectionTitle title="System" />
+          <div style={styles.card}>
+            <SettingRow
+              icon={Settings}
+              title="Run in Background"
+              description="Keep the app alive in the system tray when closed."
+              control={
+                <input
+                  type="checkbox"
+                  checked={settings.runInBackground}
+                  onChange={(e) => toggleRunInBackground(e.target.checked)}
+                  style={styles.checkbox}
+                />
+              }
+            />
+            <div style={styles.divider} />
+            <SettingRow
+              icon={Settings}
+              title="Start on Boot"
+              description="Launch WallZone automatically when Windows starts."
+              control={
+                <input
+                  type="checkbox"
+                  checked={settings.startOnBoot}
+                  onChange={(e) => toggleStartOnBoot(e.target.checked)}
+                  style={styles.checkbox}
+                />
+              }
+            />
+          </div>
+
           {/* Storage Section */}
           <SectionTitle title="Storage" />
           <div style={styles.card}>
@@ -133,8 +175,8 @@ export default function SettingsPage() {
             <div style={styles.divider} />
             <SettingRow
               icon={Server}
-              title="Powered by Wallhaven"
-              description="API integration client"
+              title="Powered by Unsplash"
+              description="High-resolution photography API"
             />
           </div>
 
@@ -270,6 +312,7 @@ const styles = {
     border: '1px solid var(--border)',
     overflow: 'hidden',
     backgroundColor: 'var(--surface-elevated)',
+    backdropFilter: 'blur(20px)',
   },
   divider: {
     height: '1px',

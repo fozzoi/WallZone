@@ -4,7 +4,8 @@
  * SettingsContext — persistent user preferences backed by localStorage.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 export type ThemeMode    = 'system' | 'light' | 'dark';
 export type WallTarget   = 'home' | 'lock' | 'both';
@@ -15,6 +16,8 @@ export interface Settings {
   safeMode:     boolean;
   wallTarget:   WallTarget;
   imageQuality: ImageQuality;
+  runInBackground: boolean;
+  startOnBoot:     boolean;
 }
 
 interface SettingsContextValue extends Settings {
@@ -28,6 +31,8 @@ const DEFAULTS: Settings = {
   safeMode:     false,
   wallTarget:   'both',
   imageQuality: 'full',
+  runInBackground: false,
+  startOnBoot:     false,
 };
 
 const STORAGE_KEY = '@wallzone_settings';
@@ -58,6 +63,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     } catch { /* non-fatal */ }
     estimateCacheSize();
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      invoke('update_system_settings', {
+        settings: {
+          runInBackground: settings.runInBackground,
+          startOnBoot: settings.startOnBoot
+        }
+      }).catch(e => console.error("Failed to sync system settings", e));
+    }
+  }, [settings.runInBackground, settings.startOnBoot]);
 
   // Update HTML data-theme attribute on theme change
   useEffect(() => {

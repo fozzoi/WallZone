@@ -1,26 +1,128 @@
 'use client';
 
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import WallpaperGrid from '@/components/WallpaperGrid';
 import { FavoritesContext } from '@/context/FavoritesContext';
+import { useSettings } from '@/context/SettingsContext';
+import { invoke } from '@tauri-apps/api/core';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 export default function SavedPage() {
-  const { favorites } = useContext(FavoritesContext);
+  const {
+    favorites,
+    shuffleEnabled,
+    shuffleInterval,
+    toggleShuffle,
+    changeShuffleInterval
+  } = useContext(FavoritesContext);
+  const settings = useSettings();
+
+  const [shuffling, setShuffling] = useState(false);
   const count = favorites?.length ?? 0;
+  const leftScrollRef = useScrollRestoration('saved-left');
+  const rightScrollRef = useScrollRestoration('saved-right');
+
+  const handleShuffleNow = async () => {
+    if (count === 0 || shuffling) return;
+    setShuffling(true);
+    try {
+      if (typeof window !== 'undefined') {
+        const success = await invoke('trigger_shuffle');
+        if (success) {
+          console.log('Shuffle successful');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Failed to rotate wallpaper. Make sure the saved images are valid.');
+    } finally {
+      setShuffling(false);
+    }
+  };
+
+  const shufflePanel = count > 0 ? (
+    <div style={styles.shuffleCard}>
+      <div style={styles.shuffleLeft}>
+        <h3 style={styles.shuffleTitle}>Auto-Wallpaper Shuffle</h3>
+        <p style={styles.shuffleDesc}>
+          Automatically rotate your desktop background using your saved wallpapers.
+        </p>
+        <div style={styles.shuffleControls}>
+          <label style={styles.switchLabel}>
+            <input
+              type="checkbox"
+              checked={shuffleEnabled}
+              onChange={(e) => toggleShuffle(e.target.checked)}
+              style={styles.checkbox}
+            />
+            <span style={styles.switchText}>Enable Auto-Shuffle</span>
+          </label>
+
+          {shuffleEnabled && (
+            <div style={styles.selectWrapper}>
+              <span style={styles.selectLabel}>Interval:</span>
+              <select
+                value={shuffleInterval}
+                onChange={(e) => changeShuffleInterval(Number(e.target.value))}
+                style={styles.select}
+              >
+                <option value={60000}>1 Minute (Testing)</option>
+                <option value={300000}>5 Minutes</option>
+                <option value={900000}>15 Minutes</option>
+                <option value={3600000}>1 Hour</option>
+                <option value={43200000}>12 Hours</option>
+                <option value={86400000}>24 Hours</option>
+              </select>
+            </div>
+          )}
+        </div>
+        
+        {/* Warning if shuffle is on but background mode is off */}
+        {shuffleEnabled && !settings.runInBackground && (
+          <div style={styles.warningBox}>
+            <span style={styles.warningText}>
+              Note: To rotate wallpapers after closing the app, ensure "Run in Background" is enabled in Settings.
+            </span>
+          </div>
+        )}
+      </div>
+      <button
+        onClick={handleShuffleNow}
+        disabled={count === 0 || shuffling}
+        style={{
+          ...styles.shuffleBtn,
+          ...(count === 0 ? styles.shuffleBtnDisabled : {})
+        }}
+      >
+        {shuffling ? (
+          <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid transparent', borderTopColor: '#000000' }} />
+        ) : (
+          <span>Rotate Now</span>
+        )}
+      </button>
+    </div>
+  ) : null;
 
   return (
     <div style={styles.container} className="fade-in">
-      <div style={styles.scrollArea}>
-        {/* Clean Inline Header */}
+      
+      {/* Left Column: Shuffle Settings (Scrollable) */}
+      <div ref={leftScrollRef as React.RefObject<HTMLDivElement>} style={styles.leftPane}>
         <div style={styles.pageHeader}>
           <h2 style={styles.pageTitle}>Saved Collection</h2>
           <p style={styles.pageSubtitle}>
             {count === 0 ? 'Your personal library is empty' : `${count} wallpaper${count !== 1 ? 's' : ''} stored locally`}
           </p>
         </div>
+        {shufflePanel}
+        
+        {/* Settings Info / Tips can go here if needed in future */}
+      </div>
 
+      {/* Right Column: Wallpaper Grid (Scrollable) */}
+      <div ref={rightScrollRef as React.RefObject<HTMLDivElement>} style={styles.rightPane}>
         {count === 0 ? (
           <div style={styles.empty}>
             <div style={styles.iconCircle}>
@@ -41,6 +143,7 @@ export default function SavedPage() {
           />
         )}
       </div>
+
     </div>
   );
 }
@@ -48,15 +151,25 @@ export default function SavedPage() {
 const styles = {
   container: {
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'row' as const,
     flex: 1,
     height: '100%',
     overflow: 'hidden',
   },
-  scrollArea: {
-    flex: 1,
+  leftPane: {
+    width: '380px',
+    height: '100%',
     overflowY: 'auto' as const,
     padding: '32px 24px',
+    borderRight: '1px solid var(--border)',
+    backgroundColor: 'var(--sidebar-bg)',
+    backdropFilter: 'blur(20px)',
+  },
+  rightPane: {
+    flex: 1,
+    height: '100%',
+    overflowY: 'auto' as const,
+    padding: '16px',
   },
   pageHeader: {
     marginBottom: '28px',
@@ -78,7 +191,7 @@ const styles = {
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: '80px',
+    paddingTop: '60px',
     paddingLeft: '24px',
     paddingRight: '24px',
     gap: '16px',
@@ -118,5 +231,106 @@ const styles = {
     cursor: 'pointer',
     boxShadow: 'var(--card-shadow)',
     transition: 'transform 0.15s ease',
+  },
+  shuffleCard: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 24px',
+    borderRadius: '16px',
+    border: '1px solid var(--border)',
+    backgroundColor: 'var(--surface-elevated)',
+    backdropFilter: 'blur(10px)',
+    marginBottom: '28px',
+    gap: '16px',
+    flexWrap: 'wrap' as const,
+  },
+  shuffleLeft: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    flex: 1,
+    minWidth: '280px',
+  },
+  shuffleTitle: {
+    fontSize: '15px',
+    fontWeight: '700',
+    color: 'var(--text)',
+    marginBottom: '4px',
+  },
+  shuffleDesc: {
+    fontSize: '12px',
+    color: 'var(--text-sub)',
+    marginBottom: '12px',
+  },
+  shuffleControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '24px',
+    flexWrap: 'wrap' as const,
+  },
+  switchLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: 'var(--text)',
+  },
+  switchText: {
+    userSelect: 'none' as const,
+  },
+  selectWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  selectLabel: {
+    fontSize: '12px',
+    color: 'var(--text-sub)',
+  },
+  select: {
+    padding: '4px 8px',
+    borderRadius: '6px',
+    border: '1px solid var(--border)',
+    backgroundColor: 'var(--surface)',
+    color: 'var(--text)',
+    fontSize: '12px',
+    outline: 'none',
+    cursor: 'pointer',
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    accentColor: 'var(--text)',
+    cursor: 'pointer',
+  },
+  shuffleBtn: {
+    backgroundColor: '#ffffff',
+    color: '#000000',
+    border: 'none',
+    borderRadius: '10px',
+    padding: '10px 20px',
+    fontSize: '12px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    boxShadow: 'var(--card-shadow)',
+    transition: 'transform 0.15s ease, opacity 0.15s ease',
+  },
+  shuffleBtnDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
+  warningBox: {
+    marginTop: '16px',
+    padding: '8px 12px',
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    borderLeft: '3px solid orange',
+    borderRadius: '4px',
+  },
+  warningText: {
+    fontSize: '11px',
+    color: 'var(--text-sub)',
+    fontWeight: '500',
   },
 };
