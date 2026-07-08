@@ -34,15 +34,16 @@ function AlertDialogPopup({
     <Base.Portal keepMounted>
       <AnimatePresence>
         <Base.Backdrop render={
-          <motion.div
+          (<motion.div
             className="fixed inset-0 z-50 bg-black/50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-          />
+          />) as any
         } />
         <Base.Popup render={
-          <motion.div
+          (<motion.div
+            {...props}
             className={cn(
               'fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2',
               'rounded-lg border bg-popover p-6 shadow-lg',
@@ -52,8 +53,8 @@ function AlertDialogPopup({
             animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, ...offsets[from] }}
             transition={transition}
-          />
-        } {...props}>
+          />) as any
+        }>
           {children}
         </Base.Popup>
       </AnimatePresence>
