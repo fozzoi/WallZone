@@ -43,15 +43,18 @@ function DialogContent({
     <DialogPrimitive.Portal forceMount>
       <AnimatePresence>
         <DialogPrimitive.Overlay asChild forceMount>
-          <motion.div
+          {(<motion.div
             className="fixed inset-0 z-50 bg-black/50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-          />
+          />) as any}
         </DialogPrimitive.Overlay>
-        <DialogPrimitive.Content asChild forceMount {...props}>
-          <motion.div
+        {(() => {
+          const Content = DialogPrimitive.Content as React.ElementType;
+          return (
+            <Content asChild forceMount {...props}>
+          {(<motion.div
             className={cn(
               'fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2',
               'rounded-lg border bg-popover p-6 shadow-lg',
@@ -69,8 +72,10 @@ function DialogContent({
                 <span className="sr-only">Close</span>
               </DialogPrimitive.Close>
             )}
-          </motion.div>
-        </DialogPrimitive.Content>
+          </motion.div>) as any}
+        </Content>
+          );
+        })()}
       </AnimatePresence>
     </DialogPrimitive.Portal>
   );

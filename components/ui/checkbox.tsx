@@ -23,9 +23,10 @@ function Checkbox({
   size = 'default',
   ...props
 }: CheckboxProps) {
+  const Root = CheckboxPrimitive.Root as React.ElementType;
   return (
-    <CheckboxPrimitive.Root asChild {...props}>
-      <motion.button
+    <Root asChild {...props}>
+      {(<motion.button
         whileTap={{ scale: 0.9 }}
         className={cn(
           'flex items-center justify-center rounded border shrink-0',
@@ -37,7 +38,7 @@ function Checkbox({
         )}
       >
         <CheckboxPrimitive.Indicator asChild forceMount>
-          <motion.span
+          {(<motion.span
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{
               opacity: props.checked || props.defaultChecked ? 1 : 0,
@@ -46,10 +47,10 @@ function Checkbox({
             className="text-primary-foreground"
           >
             <Check className="size-full p-0.5" strokeWidth={3} />
-          </motion.span>
+          </motion.span>) as any}
         </CheckboxPrimitive.Indicator>
-      </motion.button>
-    </CheckboxPrimitive.Root>
+      </motion.button>) as any}
+    </Root>
   );
 }
 
