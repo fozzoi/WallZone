@@ -1,28 +1,32 @@
-import { useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+// hooks/useScrollRestoration.ts
+'use client';
 
-export function useScrollRestoration(id: string) {
-  const pathname = usePathname();
-  const ref = useRef<HTMLDivElement>(null);
+import { useEffect, useRef } from 'react';
+
+const scrollPositions = new Map<string, number>();
+
+export function useScrollRestoration(key: string) {
+  const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    const key = `scroll-pos-${id}-${pathname}`;
-    const savedPos = sessionStorage.getItem(key);
-    
-    if (savedPos) {
-      el.scrollTop = parseInt(savedPos, 10);
+    const saved = scrollPositions.get(key);
+    if (saved != null) {
+      // wait a frame so content has actually rendered/laid out first
+      requestAnimationFrame(() => {
+        el.scrollTop = saved;
+      });
     }
 
     const handleScroll = () => {
-      sessionStorage.setItem(key, el.scrollTop.toString());
+      scrollPositions.set(key, el.scrollTop);
     };
 
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [id, pathname]);
+  }, [key]);
 
   return ref;
 }

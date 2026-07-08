@@ -84,6 +84,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       }
       root.setAttribute('data-theme', resolved);
+      if (resolved === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
     };
 
     applyTheme(settings.theme);

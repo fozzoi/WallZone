@@ -180,9 +180,8 @@ export default function WallpaperGrid({
 const styles = {
   container: {
     padding: '24px',
-    overflowY: 'auto' as const,
-    flex: 1,
-    height: '100%',
+    width: '100%',
+    // ❌ removed: overflowY: 'auto', flex: 1, height: '100%'
   },
   headerWrap: {
     marginBottom: '20px',

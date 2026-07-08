@@ -4,6 +4,19 @@ import React from 'react';
 import { useSettings, ThemeMode, WallTarget, ImageQuality } from '@/context/SettingsContext';
 import { Settings, Shield, Image as ImageIcon, Smartphone, Trash2, Info, Server } from 'lucide-react';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogPopup,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 export default function SettingsPage() {
   const settings = useSettings();
@@ -33,12 +46,6 @@ export default function SettingsPage() {
     settings.setSetting('startOnBoot', val);
   };
 
-  const handleClearCache = () => {
-    if (confirm('Clear Cache? This will free up storage space but may cause images to load slower next time.')) {
-      settings.clearCache();
-    }
-  };
-
   return (
     <div style={styles.container} className="fade-in">
       <div ref={scrollRef as React.RefObject<HTMLDivElement>} style={styles.scrollArea}>
@@ -57,15 +64,17 @@ export default function SettingsPage() {
               title="Theme"
               description="System auto, light, or dark mode."
               control={
-                <SegmentedControl
-                  options={[
-                    { label: 'Auto', value: 'system' },
-                    { label: 'Light', value: 'light' },
-                    { label: 'Dark', value: 'dark' },
-                  ]}
-                  currentValue={settings.theme}
-                  onChange={(val) => handleThemeChange(val as ThemeMode)}
-                />
+                <ToggleGroup
+                  type="single"
+                  value={settings.theme}
+                  onValueChange={(val) => {
+                    if (val) handleThemeChange(val as ThemeMode);
+                  }}
+                >
+                  <ToggleGroupItem value="system">Auto</ToggleGroupItem>
+                  <ToggleGroupItem value="light">Light</ToggleGroupItem>
+                  <ToggleGroupItem value="dark">Dark</ToggleGroupItem>
+                </ToggleGroup>
               }
             />
           </div>
@@ -78,11 +87,9 @@ export default function SettingsPage() {
               title="Safe Mode"
               description="Hide potentially sensitive content and anime."
               control={
-                <input
-                  type="checkbox"
+                <Switch
                   checked={settings.safeMode}
-                  onChange={(e) => toggleSafeMode(e.target.checked)}
-                  style={styles.checkbox}
+                  onCheckedChange={(checked) => toggleSafeMode(!!checked)}
                 />
               }
             />
@@ -92,14 +99,16 @@ export default function SettingsPage() {
               title="Grid Quality"
               description="High-res looks better but uses more network data."
               control={
-                <SegmentedControl
-                  options={[
-                    { label: 'Fast', value: 'thumb' },
-                    { label: 'High', value: 'full' },
-                  ]}
-                  currentValue={settings.imageQuality}
-                  onChange={(val) => handleQualityChange(val as ImageQuality)}
-                />
+                <ToggleGroup
+                  type="single"
+                  value={settings.imageQuality}
+                  onValueChange={(val) => {
+                    if (val) handleQualityChange(val as ImageQuality);
+                  }}
+                >
+                  <ToggleGroupItem value="thumb">Fast</ToggleGroupItem>
+                  <ToggleGroupItem value="full">High</ToggleGroupItem>
+                </ToggleGroup>
               }
             />
             <div style={styles.divider} />
@@ -108,15 +117,17 @@ export default function SettingsPage() {
               title="Set Wallpaper Default"
               description="Which screen to set by default on your device."
               control={
-                <SegmentedControl
-                  options={[
-                    { label: 'Both', value: 'both' },
-                    { label: 'Home', value: 'home' },
-                    { label: 'Lock', value: 'lock' },
-                  ]}
-                  currentValue={settings.wallTarget}
-                  onChange={(val) => handleTargetChange(val as WallTarget)}
-                />
+                <ToggleGroup
+                  type="single"
+                  value={settings.wallTarget}
+                  onValueChange={(val) => {
+                    if (val) handleTargetChange(val as WallTarget);
+                  }}
+                >
+                  <ToggleGroupItem value="both">Both</ToggleGroupItem>
+                  <ToggleGroupItem value="home">Home</ToggleGroupItem>
+                  <ToggleGroupItem value="lock">Lock</ToggleGroupItem>
+                </ToggleGroup>
               }
             />
           </div>
@@ -129,11 +140,9 @@ export default function SettingsPage() {
               title="Run in Background"
               description="Keep the app alive in the system tray when closed."
               control={
-                <input
-                  type="checkbox"
+                <Switch
                   checked={settings.runInBackground}
-                  onChange={(e) => toggleRunInBackground(e.target.checked)}
-                  style={styles.checkbox}
+                  onCheckedChange={(checked) => toggleRunInBackground(!!checked)}
                 />
               }
             />
@@ -143,11 +152,9 @@ export default function SettingsPage() {
               title="Start on Boot"
               description="Launch WallZone automatically when Windows starts."
               control={
-                <input
-                  type="checkbox"
+                <Switch
                   checked={settings.startOnBoot}
-                  onChange={(e) => toggleStartOnBoot(e.target.checked)}
-                  style={styles.checkbox}
+                  onCheckedChange={(checked) => toggleStartOnBoot(!!checked)}
                 />
               }
             />
@@ -156,12 +163,34 @@ export default function SettingsPage() {
           {/* Storage Section */}
           <SectionTitle title="Storage" />
           <div style={styles.card}>
-            <SettingRow
-              icon={Trash2}
-              title="Clear Image Cache"
-              description={`Currently using ~${settings.cacheSize}`}
-              onPress={handleClearCache}
-            />
+            <AlertDialog>
+              <AlertDialogTrigger className="w-full text-left" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                <SettingRow
+                  icon={Trash2}
+                  title="Clear Image Cache"
+                  description={`Currently using ~${settings.cacheSize}`}
+                />
+              </AlertDialogTrigger>
+              <AlertDialogPopup>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear Cache?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will free up storage space but may cause images to load slower next time.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-md border px-4 py-2 text-sm text-foreground">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => settings.clearCache()}
+                    className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"
+                  >
+                    Clear Cache
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogPopup>
+            </AlertDialog>
           </div>
 
           {/* About Section */}
@@ -227,42 +256,6 @@ const SettingRow = ({
   return content;
 };
 
-const SegmentedControl = ({
-  options,
-  currentValue,
-  onChange,
-}: {
-  options: { label: string; value: string }[];
-  currentValue: string;
-  onChange: (val: string) => void;
-}) => {
-  return (
-    <div style={styles.segContainer}>
-      {options.map((opt) => {
-        const active = currentValue === opt.value;
-        return (
-          <button
-            key={opt.value}
-            onClick={() => onChange(opt.value)}
-            style={{
-              ...styles.segBtn,
-              ...(active ? styles.segBtnActive : {}),
-            }}
-          >
-            <span
-              style={{
-                ...styles.segText,
-                ...(active ? styles.segTextActive : {}),
-              }}
-            >
-              {opt.label}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-};
 
 const styles = {
   container: {
@@ -353,39 +346,5 @@ const styles = {
   },
   controlWrap: {
     marginLeft: '16px',
-  },
-  checkbox: {
-    width: '18px',
-    height: '18px',
-    accentColor: 'var(--text)',
-    cursor: 'pointer',
-  },
-  segContainer: {
-    display: 'flex',
-    padding: '3px',
-    borderRadius: '8px',
-    border: '1px solid var(--border)',
-    backgroundColor: 'var(--accent-dim)',
-  },
-  segBtn: {
-    padding: '6px 12px',
-    borderRadius: '6px',
-    border: 'none',
-    background: 'none',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
-  },
-  segBtnActive: {
-    backgroundColor: 'var(--surface-elevated)',
-    boxShadow: '0px 1px 2px rgba(0,0,0,0.1)',
-  },
-  segText: {
-    fontSize: '12px',
-    fontWeight: '500',
-    color: 'var(--text-sub)',
-  },
-  segTextActive: {
-    fontWeight: '700',
-    color: 'var(--text)',
   },
 };

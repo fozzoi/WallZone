@@ -1,4 +1,3 @@
-// app/wallpaper/page.tsx
 'use client';
 
 import React, { useState, useEffect, useContext, Suspense } from 'react';
@@ -7,6 +6,16 @@ import { ArrowLeft, Heart, Download, Bookmark, MapPin, Loader2 } from 'lucide-re
 import { FavoritesContext } from '@/context/FavoritesContext';
 import { trackDownload, fetchWallpaperDetail } from '@/services/api';
 import { invoke } from '@tauri-apps/api/core';
+import { RippleButton, RippleButtonRipples } from '@/components/ui/ripple-button';
+import {
+  AlertDialog,
+  AlertDialogPopup,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 function WallpaperDetailContent() {
   const searchParams = useSearchParams();
@@ -39,6 +48,9 @@ function WallpaperDetailContent() {
   const [details, setDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [showAllTags, setShowAllTags] = useState(false);
+  
+  // Unified Error Dialog State
+  const [errorDialog, setErrorDialog] = useState({ show: false, title: '', message: '' });
 
   // Fetch full details (Exif, Stats, Location, User Avatar) from Unsplash API
   useEffect(() => {
@@ -138,7 +150,11 @@ function WallpaperDetailContent() {
       }
     } catch (err) {
       console.error('Download failed', err);
-      alert('Failed to download image. Please try again.');
+      setErrorDialog({
+        show: true,
+        title: 'Download Failed',
+        message: 'Failed to download image. Please try again.'
+      });
     } finally {
       setDownloading(false);
     }
@@ -156,7 +172,11 @@ function WallpaperDetailContent() {
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to set desktop wallpaper. Check connection or try another image.');
+      setErrorDialog({
+        show: true,
+        title: 'Action Failed',
+        message: 'Failed to set desktop wallpaper. Check connection or try another image.'
+      });
     } finally {
       setSettingWall(false);
     }
@@ -314,9 +334,10 @@ function WallpaperDetailContent() {
 
                 <div style={styles.divider} />
 
-                {/* Set Desktop Wallpaper Button */}
-                <button
+                {/* Set Desktop Wallpaper Button upgraded to RippleButton */}
+                <RippleButton
                   onClick={handleSetWallpaper}
+                  disabled={settingWall}
                   className="primary-btn btn-set-wallpaper"
                   style={styles.setWallpaperBtn}
                 >
@@ -324,13 +345,29 @@ function WallpaperDetailContent() {
                     <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid transparent', borderTopColor: '#000000', marginRight: '8px' }} />
                   ) : null}
                   <span>{settingWall ? 'Setting Background...' : 'Set Desktop Wallpaper'}</span>
-                </button>
+                  <RippleButtonRipples color="rgba(0,0,0,0.2)" />
+                </RippleButton>
               </div>
             )}
           </div>
         </div>
-
       </div>
+
+      {/* Global Action Error Dialog */}
+      <AlertDialog open={errorDialog.show} onOpenChange={(open) => setErrorDialog(prev => ({ ...prev, show: open }))}>
+        <AlertDialogPopup>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{errorDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{errorDialog.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-md border px-4 py-2 text-sm text-foreground">
+              Dismiss
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogPopup>
+      </AlertDialog>
+
     </div>
   );
 }

@@ -8,6 +8,17 @@ import { FavoritesContext } from '@/context/FavoritesContext';
 import { useSettings } from '@/context/SettingsContext';
 import { invoke } from '@tauri-apps/api/core';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { Switch } from '@/components/ui/switch';
+import { RippleButton, RippleButtonRipples } from '@/components/ui/ripple-button';
+import {
+  AlertDialog,
+  AlertDialogPopup,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 export default function SavedPage() {
   const {
@@ -20,6 +31,7 @@ export default function SavedPage() {
   const settings = useSettings();
 
   const [shuffling, setShuffling] = useState(false);
+  const [showError, setShowError] = useState(false);
   const count = favorites?.length ?? 0;
   const leftScrollRef = useScrollRestoration('saved-left');
   const rightScrollRef = useScrollRestoration('saved-right');
@@ -36,7 +48,7 @@ export default function SavedPage() {
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to rotate wallpaper. Make sure the saved images are valid.');
+      setShowError(true);
     } finally {
       setShuffling(false);
     }
@@ -51,11 +63,9 @@ export default function SavedPage() {
         </p>
         <div style={styles.shuffleControls}>
           <label style={styles.switchLabel}>
-            <input
-              type="checkbox"
+            <Switch
               checked={shuffleEnabled}
-              onChange={(e) => toggleShuffle(e.target.checked)}
-              style={styles.checkbox}
+              onCheckedChange={(checked) => toggleShuffle(!!checked)}
             />
             <span style={styles.switchText}>Enable Auto-Shuffle</span>
           </label>
@@ -88,7 +98,7 @@ export default function SavedPage() {
           </div>
         )}
       </div>
-      <button
+      <RippleButton
         onClick={handleShuffleNow}
         disabled={count === 0 || shuffling}
         style={{
@@ -101,7 +111,8 @@ export default function SavedPage() {
         ) : (
           <span>Rotate Now</span>
         )}
-      </button>
+        <RippleButtonRipples />
+      </RippleButton>
     </div>
   ) : null;
 
@@ -117,8 +128,6 @@ export default function SavedPage() {
           </p>
         </div>
         {shufflePanel}
-        
-        {/* Settings Info / Tips can go here if needed in future */}
       </div>
 
       {/* Right Column: Wallpaper Grid (Scrollable) */}
@@ -133,7 +142,10 @@ export default function SavedPage() {
               Click the heart icon on any wallpaper card or detail view to add it to your saved collection.
             </p>
             <Link href="/" style={{ textDecoration: 'none' }}>
-              <button style={styles.exploreBtn}>Browse Wallpapers</button>
+              <RippleButton variant="default" style={styles.exploreBtn}>
+                Browse Wallpapers
+                <RippleButtonRipples />
+              </RippleButton>
             </Link>
           </div>
         ) : (
@@ -143,6 +155,23 @@ export default function SavedPage() {
           />
         )}
       </div>
+
+      {/* Error Dialog for Shuffle Failure */}
+      <AlertDialog open={showError} onOpenChange={setShowError}>
+        <AlertDialogPopup>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Action Failed</AlertDialogTitle>
+            <AlertDialogDescription>
+              Failed to rotate wallpaper. Make sure the saved images are valid.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-md border px-4 py-2 text-sm text-foreground">
+              Close
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogPopup>
+      </AlertDialog>
 
     </div>
   );
@@ -297,12 +326,6 @@ const styles = {
     color: 'var(--text)',
     fontSize: '12px',
     outline: 'none',
-    cursor: 'pointer',
-  },
-  checkbox: {
-    width: '16px',
-    height: '16px',
-    accentColor: 'var(--text)',
     cursor: 'pointer',
   },
   shuffleBtn: {
